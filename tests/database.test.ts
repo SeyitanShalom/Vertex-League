@@ -1,0 +1,357 @@
+import { PGlite } from "@electric-sql/pglite";
+import { readFile } from "node:fs/promises";
+import { randomUUID, createHash } from "node:crypto";
+import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from "vitest";
+let db: PGlite;
+const admin = "11111111-1111-4111-8111-111111111111";
+const outsider = "22222222-2222-4222-8222-222222222222";
+const tokenHash = "a".repeat(64);
+const payloadHash = "b".repeat(64);
+const team = {
+  team_name: "Eagles FC",
+  manager_name: "Ada Okafor",
+  phone: "+2348031234567",
+  whatsapp_number: "+2348031234567",
+  email: null,
+  location: "Ikeja",
+  additional_information: null,
+};
+type Saved = { id: string; reference: string; team_id: string };
+async function register(
+  data: Record<string, unknown> = team,
+  key = randomUUID(),
+  mode = "test",
+): Promise<Saved> {
+  const result = await db.query<{ result: Saved }>(
+    "select public.create_team_registration($1,$2::jsonb,$3::uuid,$4,$5) result",
+    [mode, JSON.stringify(data), key, tokenHash, payloadHash],
+  );
+  return result.rows[0].result;
+}
+async function authenticate(id = admin, aal = "aal2") {
+  await db.query("select set_config('request.jwt.claims',$1,true)", [
+    JSON.stringify({ sub: id, aal }),
+  ]);
+  await db.exec("set local role authenticated;");
+}
+async function action(
+  id: string,
+  name: string,
+  reason = "Verified by organizer",
+  details: Record<string, unknown> = {},
+) {
+  await db.query("select public.admin_registration_action($1::uuid,$2,$3,$4::jsonb)", [
+    id,
+    name,
+    reason,
+    JSON.stringify(details),
+  ]);
+}
+beforeAll(async () => {
+  db = new PGlite();
+  await db.waitReady;
+  await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
+    create schema auth; create table auth.users(id uuid primary key);
+    create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
+    create function auth.uid() returns uuid language sql stable as $$select (auth.jwt()->>'sub')::uuid$$;
+    create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+    insert into auth.users values('${admin}'),('${outsider}'); grant usage on schema public,auth to anon,authenticated,service_role;`);
+  for (const file of [
+    "202610160001_vertex_league.sql",
+    "202610160002_admin_queries.sql",
+    "202610160003_logo_updates.sql",
+  ])
+    await db.exec(
+      await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"),
+    );
+  await db.query("insert into public.admin_members(user_id) values($1)", [admin]);
+});
+afterAll(async () => {
+  await db?.close();
+});
+beforeEach(async () => {
+  await db.exec("begin;");
+});
+afterEach(async () => {
+  await db.exec("rollback; reset role;");
+});
+describe("real PostgreSQL registration rules", () => {
+  it("does not truncate reference numbers after the millionth submission", async () => {
+    await db.exec("select setval('public.registration_reference_seq',1000000)");
+    const r = await register();
+    expect(r.reference).toBe("VL-TEST-2026-1000001");
+    await db.exec("select setval('public.registration_reference_seq',1)");
+  });
+  it("atomically stores permitted owner corrections", async () => {
+    const r = await register();
+    await db.query("select public.correct_team_registration($1,$2,$3)", [
+      r.id,
+      tokenHash,
+      { ...team, location: "Surulere" },
+    ]);
+    const result = await db.query<{ location: string }>(
+      "select location from public.teams where id=$1",
+      [r.team_id],
+    );
+    expect(result.rows[0].location).toBe("Surulere");
+  });
+  it("attaches a logo only to the authorized team path and records an audit event", async () => {
+    const r = await register();
+    const path = `test/${r.team_id}/badge.webp`;
+    await db.query("select public.set_team_logo($1,$2,$3)", [r.id, tokenHash, path]);
+    const result = await db.query<{ logo_path: string }>(
+      "select logo_path from public.teams where id=$1",
+      [r.team_id],
+    );
+    expect(result.rows[0].logo_path).toBe(path);
+  });
+  it("blocks cross-team logo paths", async () => {
+    const r = await register();
+    await expect(
+      db.query("select public.set_team_logo($1,$2,$3)", [
+        r.id,
+        tokenHash,
+        `test/${randomUUID()}/badge.webp`,
+      ]),
+    ).rejects.toThrow("invalid_logo_path");
+  });
+  it("atomically saves team, payment and an immutable fee snapshot", async () => {
+    const saved = await register({ ...team, registration_fee: 1 });
+    expect(saved.reference).toMatch(/^VL-TEST-2026-\d{6}$/);
+    await db.exec("update public.competition_settings set registration_fee=500 where mode='test'");
+    const result = await db.query<{
+      registration_fee: string;
+      payment_status: string;
+      registration_status: string;
+    }>(
+      "select r.registration_fee,p.payment_status,r.registration_status from public.registrations r join public.payments p on p.registration_id=r.id where r.id=$1",
+      [saved.id],
+    );
+    expect(Number(result.rows[0].registration_fee)).toBe(100);
+    expect(result.rows[0].payment_status).toBe("pending");
+    expect(result.rows[0].registration_status).toBe("submitted");
+  });
+  it("retries an identical submission without creating another team", async () => {
+    const key = randomUUID();
+    const a = await register(team, key);
+    const b = await register(team, key);
+    expect(a.id).toBe(b.id);
+    const result = await db.query<{ count: number }>(
+      "select count(*)::int count from public.teams",
+    );
+    expect(result.rows[0].count).toBe(1);
+  });
+  it("generates unique references across simultaneous requests", async () => {
+    const [a, b] = await Promise.all([
+      register(),
+      register({
+        ...team,
+        team_name: "Tigers FC",
+        phone: "+2348031234568",
+        whatsapp_number: "+2348031234568",
+      }),
+    ]);
+    expect(a.reference).not.toBe(b.reference);
+  });
+  it("blocks the same team with different capitalization and punctuation", async () => {
+    await register();
+    await expect(
+      register({
+        ...team,
+        team_name: "EAGLES-FC",
+        phone: "+2348031234568",
+        whatsapp_number: "+2348031234568",
+      }),
+    ).rejects.toThrow(/duplicate/i);
+  });
+  it("blocks a manager reusing either number for a different team", async () => {
+    await register();
+    await expect(
+      register({ ...team, team_name: "Tigers FC", phone: "+2348031234568" }),
+    ).rejects.toThrow(/duplicate/i);
+  });
+  it("enforces registration deadlines in the database", async () => {
+    await db.exec(
+      "update public.competition_settings set registration_deadline=now()-interval '1 minute' where mode='test'",
+    );
+    await expect(register()).rejects.toThrow("deadline_passed");
+  });
+  it("keeps live registration closed by default", async () => {
+    await expect(register(team, randomUUID(), "live")).rejects.toThrow("registration_closed");
+  });
+  it("does not allow owner corrections with a wrong token", async () => {
+    const r = await register();
+    await expect(
+      db.query("select public.correct_team_registration($1,$2,$3)", [r.id, "c".repeat(64), team]),
+    ).rejects.toThrow("access_denied");
+  });
+});
+describe("database authorization and administrative transitions", () => {
+  it("calculates administrator statistics from persisted payment state", async () => {
+    const r = await register();
+    await authenticate();
+    await action(r.id, "payment_received");
+    const result = await db.query<{
+      stats: { total: number; pending: number; confirmed: number; approved: number };
+    }>("select public.admin_registration_stats('test') stats");
+    expect(result.rows[0].stats).toMatchObject({ total: 1, pending: 0, confirmed: 1, approved: 0 });
+  });
+  it("searches and filters actual registrations without returning private credentials", async () => {
+    await register();
+    await authenticate();
+    const result = await db.query<{ result: { total: number; rows: Record<string, unknown>[] } }>(
+      "select public.admin_list_registrations('test','eagles','pending','submitted',1,null,null) result",
+    );
+    expect(result.rows[0].result.total).toBe(1);
+    expect(result.rows[0].result.rows[0].team_name).toBe("Eagles FC");
+    expect(result.rows[0].result.rows[0]).not.toHaveProperty("status_token_hash");
+    const empty = await db.query<{ result: { total: number } }>(
+      "select public.admin_list_registrations('test','','confirmed','',1,null,null) result",
+    );
+    expect(empty.rows[0].result.total).toBe(0);
+  });
+  it("blocks anonymous reads and public registration RPCs", async () => {
+    await register();
+    await db.exec("set local role anon");
+    await expect(db.query("select * from public.registrations")).rejects.toThrow(
+      /permission denied/i,
+    );
+  });
+  it("blocks anonymous mutation RPC execution", async () => {
+    await db.exec("set local role anon");
+    await expect(register()).rejects.toThrow(/permission denied/i);
+  });
+  it("returns no rows to an authenticated non-admin", async () => {
+    await register();
+    await authenticate(outsider);
+    const result = await db.query("select * from public.registrations");
+    expect(result.rows).toHaveLength(0);
+  });
+  it("rejects administrator mutations without MFA", async () => {
+    const r = await register();
+    await authenticate(admin, "aal1");
+    await expect(action(r.id, "payment_received")).rejects.toThrow("access_denied");
+  });
+  it("rejects a non-admin even with MFA", async () => {
+    const r = await register();
+    await authenticate(outsider);
+    await expect(action(r.id, "payment_received")).rejects.toThrow("access_denied");
+  });
+  it("payment received provisionally books without approving and writes an audit event", async () => {
+    const r = await register();
+    await authenticate();
+    await action(r.id, "payment_received");
+    const result = await db.query<{ registration_status: string; payment_status: string }>(
+      "select r.registration_status,p.payment_status from public.registrations r join public.payments p on p.registration_id=r.id where r.id=$1",
+      [r.id],
+    );
+    expect(result.rows[0]).toEqual({
+      registration_status: "awaiting_screening",
+      payment_status: "confirmed",
+    });
+    const audit = await db.query(
+      "select * from public.admin_audit_logs where registration_id=$1 and action='payment_received'",
+      [r.id],
+    );
+    expect(audit.rows).toHaveLength(1);
+  });
+  it("blocks approval when payment has not been confirmed", async () => {
+    const r = await register();
+    await authenticate();
+    await expect(action(r.id, "approve", "", { screening_passed: true })).rejects.toThrow(
+      "screening_and_payment_required",
+    );
+  });
+  it("requires explicit physical screening confirmation", async () => {
+    const r = await register();
+    await authenticate();
+    await action(r.id, "payment_received");
+    await expect(action(r.id, "approve")).rejects.toThrow("screening_and_payment_required");
+  });
+  it("allows approval after payment and screening", async () => {
+    const r = await register();
+    await authenticate();
+    await action(r.id, "payment_received");
+    await action(r.id, "approve", "Screening passed", { screening_passed: true });
+    const result = await db.query<{ registration_status: string }>(
+      "select registration_status from public.registrations where id=$1",
+      [r.id],
+    );
+    expect(result.rows[0].registration_status).toBe("approved");
+  });
+  it("rejects early screening approval before the deadline", async () => {
+    const r = await register();
+    await db.exec(
+      "update public.competition_settings set registration_deadline=now()+interval '1 day' where mode='test'",
+    );
+    await authenticate();
+    await action(r.id, "payment_received");
+    await expect(action(r.id, "approve", "", { screening_passed: true })).rejects.toThrow(
+      "screening_after_deadline",
+    );
+  });
+  it("enforces an optional capacity at payment confirmation, not unpaid submission", async () => {
+    await db.exec("update public.competition_settings set maximum_teams=1 where mode='test'");
+    const a = await register();
+    const b = await register({
+      ...team,
+      team_name: "Tigers FC",
+      phone: "+2348031234568",
+      whatsapp_number: "+2348031234568",
+    });
+    await authenticate();
+    await action(a.id, "payment_received");
+    await expect(action(b.id, "payment_received")).rejects.toThrow("capacity_reached");
+  });
+  it("rejection after payment creates a full refund obligation", async () => {
+    const r = await register();
+    await authenticate();
+    await action(r.id, "payment_received");
+    await action(r.id, "reject", "Team failed physical screening");
+    const result = await db.query<{ refund_status: string }>(
+      "select refund_status from public.registrations where id=$1",
+      [r.id],
+    );
+    expect(result.rows[0].refund_status).toBe("pending");
+    await action(r.id, "refund", "Returned in full", {
+      transfer_reference: "BANK-REFUND-001",
+      refunded_at: new Date().toISOString(),
+    });
+    const refund = await db.query<{ amount: string }>(
+      "select amount from public.refunds where registration_id=$1",
+      [r.id],
+    );
+    expect(Number(refund.rows[0].amount)).toBe(100);
+  });
+  it("rejects payment with a reason and permits proof resubmission to be verified", async () => {
+    const r = await register();
+    await authenticate();
+    await action(r.id, "reject_payment", "Transfer not found");
+    await action(r.id, "payment_received", "Resubmitted proof matched bank transfer");
+    const result = await db.query<{ payment_status: string }>(
+      "select payment_status from public.payments where registration_id=$1",
+      [r.id],
+    );
+    expect(result.rows[0].payment_status).toBe("confirmed");
+  });
+  it("lets admins revoke a lost access link without storing the replacement token", async () => {
+    const r = await register();
+    const replacement = createHash("sha256").update("replacement").digest("hex");
+    await authenticate();
+    await action(r.id, "recover_access", "Manager identity checked", { token_hash: replacement });
+    const result = await db.query<{ status_token_hash: string }>(
+      "select status_token_hash from public.registrations where id=$1",
+      [r.id],
+    );
+    expect(result.rows[0].status_token_hash).toBe(replacement);
+  });
+  it("prevents direct status updates even for authenticated administrators", async () => {
+    const r = await register();
+    await authenticate();
+    await expect(
+      db.query("update public.registrations set registration_status='approved' where id=$1", [
+        r.id,
+      ]),
+    ).rejects.toThrow(/permission denied/i);
+  });
+});
