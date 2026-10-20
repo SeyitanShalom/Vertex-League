@@ -34,10 +34,8 @@ export default async function RegistrationPage({
     contact.whatsapp,
     `Hello, I need help with my Vertex League registration.\nReference: ${reference}\nTeam: ${row.teams.team_name}`,
   );
-  const logoChat = whatsappLink(
-    contact.whatsapp,
-    `Hello, I am sending my team logo for Vertex League.\nReference: ${reference}\nTeam: ${row.teams.team_name}`,
-  );
+  const logoMessage = `Hello, I am sending my team logo for Vertex League.\nReference: ${reference}\nTeam: ${row.teams.team_name}`;
+  const logoChat = whatsappLink(contact.whatsapp, logoMessage);
   const logoUrl = row.teams.logo_path ? `/api/logo/${reference}` : undefined;
   const statusText =
     row.refund_status === "refunded"
@@ -130,15 +128,15 @@ export default async function RegistrationPage({
                   <dt>Full amount</dt>
                   <dd>{money(row.registration_fee)}</dd>
                 </div>
-                {row.refunds[0] && (
+                {row.refunds && (
                   <>
                     <div>
                       <dt>Returned on</dt>
-                      <dd>{dateLabel(row.refunds[0].refunded_at)}</dd>
+                      <dd>{dateLabel(row.refunds.refunded_at)}</dd>
                     </div>
                     <div>
                       <dt>Transfer reference</dt>
-                      <dd>{row.refunds[0].transfer_reference}</dd>
+                      <dd>{row.refunds.transfer_reference}</dd>
                     </div>
                   </>
                 )}
@@ -211,11 +209,16 @@ export default async function RegistrationPage({
               registration reference. You can use the same chat to send a replacement.
             </p>
             {logoChat && (
-              <Button asChild variant="outline" style={{ marginTop: 20 }}>
-                <a href={logoChat} target="_blank" rel="noreferrer">
-                  Send team logo on WhatsApp <ArrowUpRight size={16} />
-                </a>
-              </Button>
+              <>
+                <Button asChild variant="outline" style={{ marginTop: 20 }}>
+                  <a href={logoChat} target="_blank" rel="noreferrer">
+                    Send team logo on WhatsApp <ArrowUpRight size={16} />
+                  </a>
+                </Button>
+                <p className="hint" style={{ marginTop: 12 }}>
+                  Choose the app or WhatsApp Web on the next page.
+                </p>
+              </>
             )}
           </section>
         </aside>

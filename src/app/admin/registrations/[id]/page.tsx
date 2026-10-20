@@ -165,14 +165,14 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
               {row.admin_notes || "No internal notes yet."}
             </p>
           </section>
-          {row.refunds[0] && (
+          {row.refunds && (
             <section className="panel">
               <h3>Refund completed</h3>
-              <p>{money(row.refunds[0].amount)}</p>
+              <p>{money(row.refunds.amount)}</p>
               <p className="small muted">
-                {dateLabel(row.refunds[0].refunded_at)}
+                {dateLabel(row.refunds.refunded_at)}
                 <br />
-                {row.refunds[0].transfer_reference}
+                {row.refunds.transfer_reference}
               </p>
             </section>
           )}

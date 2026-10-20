@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { JadeSkyBackground } from "@/components/layout/jade-sky-background";
 import { deploymentMode, siteUrl } from "@/lib/config/server";
 import "./globals.css";
 import "./brand-fonts.css";
@@ -21,8 +22,9 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await headers();
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <body>
+        <JadeSkyBackground />
         <Header testMode={deploymentMode() === "test"} />
         <main id="main">{children}</main>
         <Footer />

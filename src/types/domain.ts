@@ -45,7 +45,7 @@ export interface Registration {
     payment_status: PaymentStatus;
     verified_at: string | null;
   }[];
-  refunds: { amount: number | string; refunded_at: string; transfer_reference: string }[];
+  refunds: { amount: number | string; refunded_at: string; transfer_reference: string } | null;
 }
 export type PublicRegistration = Omit<Registration, "admin_notes">;
 export type AdminAction =

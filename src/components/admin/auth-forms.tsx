@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import { loginAdmin, enrollMfa, verifyMfa } from "@/app/actions/auth";
+import { authenticatorQrSource } from "@/lib/mfa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/shared";
@@ -118,11 +119,7 @@ export function MfaForm({ factorId }: { factorId: string | null }) {
             width={200}
             height={200}
             className="qr"
-            src={
-              setup.qr.startsWith("data:")
-                ? setup.qr
-                : `data:image/svg+xml;utf8,${encodeURIComponent(setup.qr)}`
-            }
+            src={authenticatorQrSource(setup.qr)}
             alt="Authenticator enrollment QR code"
           />
           <details>

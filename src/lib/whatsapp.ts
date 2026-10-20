@@ -2,7 +2,8 @@ import { money } from "@/lib/utils";
 export function whatsappLink(number: string, message: string) {
   const digits = number.replace(/[+\s()-]/g, "");
   if (!/^[1-9]\d{7,14}$/.test(digits)) return null;
-  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  // Wait for the user's choice instead of automatically opening the desktop protocol.
+  return `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}&autoload=0`;
 }
 export function paymentMessage(input: {
   reference: string;

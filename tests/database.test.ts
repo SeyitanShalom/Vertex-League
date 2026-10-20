@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { randomUUID, createHash } from "node:crypto";
 import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from "vitest";
 let db: PGlite;
@@ -56,14 +56,12 @@ beforeAll(async () => {
     create function auth.uid() returns uuid language sql stable as $$select (auth.jwt()->>'sub')::uuid$$;
     create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
     insert into auth.users values('${admin}'),('${outsider}'); grant usage on schema public,auth to anon,authenticated,service_role;`);
-  for (const file of [
-    "202610160001_vertex_league.sql",
-    "202610160002_admin_queries.sql",
-    "202610160003_logo_updates.sql",
-  ])
-    await db.exec(
-      await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"),
-    );
+  const migrationDirectory = new URL("../supabase/migrations/", import.meta.url);
+  const migrations = (await readdir(migrationDirectory))
+    .filter((file) => /^\d+_.+\.sql$/.test(file))
+    .sort();
+  for (const file of migrations)
+    await db.exec(await readFile(new URL(file, migrationDirectory), "utf8"));
   await db.query("insert into public.admin_members(user_id) values($1)", [admin]);
 });
 afterAll(async () => {

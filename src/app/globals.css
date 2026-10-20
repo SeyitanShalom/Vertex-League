@@ -6,22 +6,16 @@
   --foreground: var(--brand-primary);
   --accent: var(--brand-accent);
   --accent-hover: #ffe44d;
-  --muted: #575e7a;
+  --muted: #33436a;
   --border: #dce0ed;
   --border-strong: #828ba6;
   --paper: #ffffff;
   --ink: #10104a;
-  --muted-on-light: #51516e;
+  --muted-on-light: var(--muted);
   --border-on-light: #d0d3e2;
   --surface: #ffffff;
   --surface-raised: #f5f7fc;
   --surface-deep: #edf1f8;
-  --pitch-background: #0c0c67;
-  --pitch-border: #3a3aa2;
-  --pitch-muted: #d6d9f5;
-  --pitch-stripe-one: #141491;
-  --pitch-stripe-two: #1c1c9c;
-  --pitch-line: #d4d8f3;
   --success: #197044;
   --warning: #755b00;
   --danger: #a82835;
@@ -46,6 +40,9 @@ html {
   scroll-padding-top: 100px;
 }
 body {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
   margin: 0;
   background: var(--background);
   color: var(--foreground);
@@ -126,12 +123,10 @@ svg {
   padding: 105px 0;
 }
 .section-light {
-  background: var(--paper);
   color: var(--ink);
   border-block: 1px solid var(--border);
 }
 .section-accent {
-  background: var(--background);
   color: var(--ink);
   border-block: 1px solid var(--border);
 }
@@ -306,7 +301,6 @@ svg {
   position: relative;
   z-index: 30;
   border-bottom: 1px solid var(--border);
-  background: var(--background);
 }
 .nav-inner {
   display: flex;
@@ -399,117 +393,188 @@ svg {
 .hero {
   overflow: hidden;
 }
-.hero-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 70px;
-  align-items: center;
-  padding-block: 64px 72px;
+.site-sky-background {
+  --sky-light: 243 247 255;
+  --sky-soft: 190 215 255;
+  --sky-blue: 152 185 240;
+  --sky-base: 220 234 255;
+
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.55;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+.site-sky-gradient {
+  position: absolute;
+  inset: -0.8cqmin;
+  filter: blur(0.4cqmin);
+  background-color: rgb(var(--sky-base));
+  background-image:
+    radial-gradient(
+      circle at 65.34% 44.62%,
+      rgb(var(--sky-light)) 0%,
+      rgb(var(--sky-light) / 0) 34.1%
+    ),
+    radial-gradient(
+      circle at 28.07% 74.48%,
+      rgb(var(--sky-soft)) 0%,
+      rgb(var(--sky-soft) / 0) 45.65%
+    ),
+    radial-gradient(
+      circle at 52.42% 19.94%,
+      rgb(var(--sky-blue)) 0%,
+      rgb(var(--sky-blue) / 0) 57.55%
+    ),
+    radial-gradient(
+      circle at 80.31% 84.47%,
+      rgb(var(--sky-base)) 0%,
+      rgb(var(--sky-base) / 0) 69.1%
+    );
+}
+.site-sky-gradient::before,
+.site-sky-gradient::after {
+  content: "";
+  position: absolute;
+  width: 85%;
+  height: 95%;
+  border-radius: 50%;
+}
+.site-sky-gradient::before {
+  left: -25%;
+  top: -5%;
+  background: radial-gradient(
+    ellipse,
+    rgb(var(--sky-blue) / 0.95) 0%,
+    rgb(var(--sky-blue) / 0.65) 30%,
+    rgb(var(--sky-blue) / 0) 70%
+  );
+  animation: site-sky-blue-drift 8s ease-in-out -2s infinite alternate;
+}
+.site-sky-gradient::after {
+  right: -25%;
+  top: 5%;
+  background: radial-gradient(
+    ellipse,
+    rgb(var(--sky-light) / 0.98) 0%,
+    rgb(var(--sky-light) / 0.72) 35%,
+    rgb(var(--sky-light) / 0) 70%
+  );
+  animation: site-sky-light-drift 10s ease-in-out -5s infinite alternate;
+}
+@keyframes site-sky-blue-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(110%, 18%, 0) scale(1.15);
+  }
+}
+@keyframes site-sky-light-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.1);
+  }
+  to {
+    transform: translate3d(-100%, 25%, 0) scale(1);
+  }
+}
+.hero-inner {
+  padding-block: 68px 40px;
+}
+.hero-copy {
+  max-width: 940px;
+  margin-inline: auto;
+  text-align: center;
 }
 .hero-eyebrow {
-  font-size: 9px;
-  color: var(--muted);
   display: flex;
   align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--muted);
 }
 .hero h1 {
-  font-family: var(--font-display);
-  font-size: clamp(55px, 6.2vw, 87px);
-  font-weight: 400;
-  line-height: 0.99;
-  letter-spacing: 0.005em;
+  font-family: var(--font-body);
+  font-size: clamp(40px, 6vw, 84px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.045em;
 }
 .hero h1 > span {
-  color: var(--brand-primary);
   text-decoration: underline;
   text-decoration-color: var(--accent);
-  text-decoration-thickness: 0.06em;
-  text-underline-offset: 0.08em;
+  text-decoration-thickness: 0.065em;
+  text-underline-offset: 0.12em;
 }
 .hero-copy > p {
+  max-width: 640px;
+  margin: 24px auto 28px;
   color: var(--muted);
   font-size: 16px;
   line-height: 1.7;
-  margin-top: 27px;
-  margin-bottom: 28px;
+}
+.hero .button-row {
+  justify-content: center;
 }
 .hero-footnote {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: 29px;
-}
-.mobile-break {
-  display: none;
-}
-.hero-visual {
-  background: var(--pitch-background);
-  border: 1px solid var(--pitch-border);
-  padding: 23px 25px 18px;
-  transform: rotate(2deg);
-  position: relative;
-  box-shadow: 15px 18px 0 #e7eaf5;
-}
-.visual-top,
-.visual-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--pitch-muted);
-}
-.visual-top {
-  margin-bottom: 15px;
-}
-.visual-top svg {
-  color: var(--accent);
-}
-.pitch-scene {
-  position: relative;
-  overflow: hidden;
-  background: var(--pitch-background);
-  max-height: 430px;
-  display: flex;
-  align-items: center;
   justify-content: center;
+  gap: 8px;
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: 10px;
 }
-.pitch-svg {
+.competition-logo-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: clamp(14px, 4vw, 56px);
+  max-width: 1040px;
+  padding: 0;
+  margin: 38px auto 0;
+  list-style: none;
+}
+.competition-logo {
+  min-width: 0;
+  text-align: center;
+}
+.competition-logo-float {
+  animation: competition-float 6s ease-in-out infinite;
+}
+.competition-logo:nth-child(2) .competition-logo-float {
+  animation-delay: -1.2s;
+}
+.competition-logo:nth-child(3) .competition-logo-float {
+  animation-delay: -2.5s;
+}
+.competition-logo img {
+  display: block;
   width: 100%;
-  max-height: 455px;
-  transform: perspective(900px) rotateX(11deg) rotateZ(-16deg) scale(1.12);
-  margin: -12px 0;
+  height: auto;
+  filter: drop-shadow(0 16px 16px rgb(0 0 128 / 0.08));
 }
-.pitch-tag {
-  position: absolute;
-  left: 19px;
-  bottom: 22px;
-  right: 19px;
-  padding: 17px 20px;
-  background: var(--accent);
-  color: var(--ink);
-  transform: rotate(-4deg);
-  box-shadow: 0 5px 20px #0003;
+.competition-logo-name {
+  min-height: 30px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-wrap: balance;
 }
-.pitch-tag .tiny-label {
-  font-size: 8px;
-  color: var(--ink);
-}
-.pitch-tag strong {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 27px;
-  letter-spacing: -0.05em;
-  line-height: 1.15;
-  margin-top: 5px;
-}
-.visual-bottom {
-  padding-top: 17px;
-  font-size: 7px;
+@keyframes competition-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
 }
 .facts-strip {
   border-top: 1px solid var(--border);
@@ -753,7 +818,6 @@ svg {
 }
 .closing-strip {
   padding: 30px 0;
-  background: var(--background);
   color: var(--ink);
   border-top: 4px solid var(--accent);
 }
@@ -1329,29 +1393,12 @@ td a {
     opacity: 0.4;
   }
 }
-@media (min-width: 1450px) {
-  .hero-grid {
-    gap: 100px;
-  }
-  .hero h1 {
-    font-size: 91px;
-  }
-}
 @media (max-width: 1100px) {
   .container {
     width: calc(100% - 64px);
   }
   .desktop-nav {
     gap: 18px;
-  }
-  .hero-grid {
-    gap: 40px;
-  }
-  .hero h1 {
-    font-size: 64px;
-  }
-  .hero-visual {
-    padding: 20px;
   }
   .facts-grid {
     gap: 25px;
@@ -1389,19 +1436,17 @@ td a {
   .section {
     padding-block: 70px;
   }
-  .hero-grid {
-    gap: 28px;
-    grid-template-columns: 1fr 0.8fr;
-    padding-block: 50px;
+  .hero-inner {
+    padding-block: 52px 32px;
   }
   .hero h1 {
-    font-size: 52px;
+    font-size: clamp(40px, 7.4vw, 64px);
   }
   .hero-eyebrow {
-    font-size: 7px;
+    font-size: 8px;
   }
   .hero-copy > p {
-    font-size: 13px;
+    font-size: 14px;
   }
   .hero .button-row {
     gap: 20px;
@@ -1414,23 +1459,9 @@ td a {
     font-size: 11px;
   }
   .hero-footnote {
-    font-size: 8px;
-    align-items: flex-start;
-  }
-  .hero-visual {
-    padding: 15px 14px;
-  }
-  .visual-top,
-  .visual-bottom {
-    font-size: 6px;
-  }
-  .pitch-tag {
-    padding: 10px;
-    left: 10px;
-    right: 10px;
-  }
-  .pitch-tag strong {
-    font-size: 19px;
+    max-width: 300px;
+    margin: 18px auto 0;
+    font-size: 9px;
   }
   .facts-grid {
     flex-wrap: wrap;
@@ -1530,17 +1561,23 @@ td a {
   .nav-register {
     display: none;
   }
-  .hero-grid {
-    grid-template-columns: 1fr;
-    padding-block: 40px 45px;
-    gap: 45px;
+  .hero-inner {
+    padding-block: 38px 26px;
+  }
+  .competition-logo-row {
+    gap: 10px;
+    margin-top: 30px;
+  }
+  .competition-logo-name {
+    font-size: 8px;
+    letter-spacing: 0.025em;
   }
   .hero h1 {
-    font-size: clamp(50px, 12.5vw, 71px);
+    font-size: clamp(30px, 8.6vw, 46px);
   }
   .hero-copy > p {
     font-size: 14px;
-    margin-block: 23px;
+    margin-block: 20px 22px;
   }
   .hero-eyebrow {
     font-size: 8px;
@@ -1552,32 +1589,6 @@ td a {
   }
   .hero-footnote {
     font-size: 9px;
-  }
-  .hero-visual {
-    max-width: 370px;
-    width: calc(100% - 12px);
-    margin-inline: auto;
-    padding: 18px;
-    transform: rotate(1.4deg);
-  }
-  .pitch-scene {
-    max-height: 290px;
-  }
-  .pitch-svg {
-    max-height: 340px;
-  }
-  .visual-top,
-  .visual-bottom {
-    font-size: 7px;
-  }
-  .pitch-tag {
-    bottom: 20px;
-    left: 14px;
-    right: 14px;
-    padding: 12px 16px;
-  }
-  .pitch-tag strong {
-    font-size: 25px;
   }
   .facts-grid {
     padding-block: 23px;

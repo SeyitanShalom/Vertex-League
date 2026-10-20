@@ -22,15 +22,13 @@ export default async function PaymentPage({ params }: { params: Promise<{ refere
   const ready = paymentConfigured();
   const token = (await readAccess(reference))!;
   const payment = row.payments[0];
-  const chat = whatsappLink(
-    contact.whatsapp,
-    paymentMessage({
-      reference,
-      team: row.teams.team_name,
-      manager: row.teams.manager_name,
-      fee: row.registration_fee,
-    }),
-  );
+  const message = paymentMessage({
+    reference,
+    team: row.teams.team_name,
+    manager: row.teams.manager_name,
+    fee: row.registration_fee,
+  });
+  const chat = whatsappLink(contact.whatsapp, message);
   const actionable =
     row.registration_status !== "rejected" && payment?.payment_status !== "confirmed";
   return (
@@ -118,12 +116,18 @@ export default async function PaymentPage({ params }: { params: Promise<{ refere
                 reference if you need to resend anything.
               </p>
               {ready && chat ? (
-                <Button asChild size="lg">
-                  <a href={chat} target="_blank" rel="noreferrer">
-                    <MessageCircle size={18} /> Send receipt & logo on WhatsApp{" "}
-                    <ArrowUpRight size={16} />
-                  </a>
-                </Button>
+                <>
+                  <Button asChild size="lg">
+                    <a href={chat} target="_blank" rel="noreferrer">
+                      <MessageCircle size={18} /> Send receipt & logo on WhatsApp{" "}
+                      <ArrowUpRight size={16} />
+                    </a>
+                  </Button>
+                  <p className="hint" style={{ marginTop: 12 }}>
+                    Choose the app or WhatsApp Web on the next page, then attach your receipt and
+                    team logo and press Send.
+                  </p>
+                </>
               ) : (
                 <Notice>The organizer’s WhatsApp contact is not available yet.</Notice>
               )}

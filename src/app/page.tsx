@@ -1,15 +1,8 @@
 import Link from "next/link";
-import {
-  ArrowDown,
-  ArrowUpRight,
-  Check,
-  ClipboardList,
-  MoveUpRight,
-  ShieldCheck,
-  Trophy,
-} from "lucide-react";
+import { ArrowUpRight, Check, ClipboardList, ShieldCheck, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CompetitionHero } from "@/components/home/competition-hero";
 import { competition } from "@/lib/config/competition";
 import { deploymentMode, getSettings, operationalContact } from "@/lib/config/server";
 import { registrationAvailability } from "@/lib/registration/rules";
@@ -44,106 +37,7 @@ export default async function Home() {
   const fee = settings?.registration_fee ?? (mode === "test" ? 100 : 34000);
   return (
     <>
-      <section className="hero">
-        <div className="container hero-grid">
-          <div className="hero-copy">
-            <div className="eyebrow hero-eyebrow">
-              <span className="status-dot" /> THE NEXT CHAPTER STARTS WITH YOUR TEAM
-            </div>
-            <h1>
-              BRING
-              <br />
-              YOUR TEAM.
-              <br />
-              <span>
-                MAKE
-                <br className="mobile-break" /> YOUR MARK.
-              </span>
-            </h1>
-            <p>
-              From the first whistle to the final word.
-              <br />
-              Step forward for Vertex League.
-            </p>
-            <div className="button-row">
-              <Button asChild size="lg">
-                <Link href="/register">
-                  Register your team <ArrowUpRight size={20} />
-                </Link>
-              </Button>
-              <Link className="text-link" href="#about">
-                Explore the league <ArrowDown size={17} />
-              </Link>
-            </div>
-            <div className="hero-footnote">
-              <ShieldCheck size={15} />
-              <span>Payment books your place. Screening confirms your entry.</span>
-            </div>
-          </div>
-          <div className="hero-visual" aria-hidden="true">
-            <div className="visual-top">
-              <span>VERTEX / THE BEAUTIFUL GAME</span>
-              <MoveUpRight size={22} />
-            </div>
-            <div className="pitch-scene">
-              <svg viewBox="0 0 500 660" className="pitch-svg">
-                <defs>
-                  <pattern
-                    id="pitch-stripes"
-                    width="500"
-                    height="110"
-                    patternUnits="userSpaceOnUse"
-                  >
-                    <rect width="500" height="55" fill="var(--pitch-stripe-one)" />
-                    <rect y="55" width="500" height="55" fill="var(--pitch-stripe-two)" />
-                  </pattern>
-                </defs>
-                <rect x="15" y="15" width="470" height="630" fill="url(#pitch-stripes)" />
-                <g fill="none" stroke="var(--pitch-line)" strokeWidth="1.5" opacity=".55">
-                  <rect x="38" y="38" width="424" height="584" />
-                  <path d="M38 330H462" />
-                  <circle cx="250" cy="330" r="69" />
-                  <circle cx="250" cy="330" r="3" fill="var(--pitch-line)" />
-                  <path d="M124 38V143H376V38M193 38V75H307V38M124 622V517H376V622M193 622V585H307V622" />
-                  <path d="M194 143Q250 201 306 143M194 517Q250 459 306 517" />
-                  <circle cx="250" cy="108" r="2" />
-                  <circle cx="250" cy="552" r="2" />
-                </g>
-                <g fill="var(--accent)" stroke="var(--brand-primary)" strokeWidth="3">
-                  <circle cx="152" cy="396" r="9" />
-                  <circle cx="250" cy="450" r="9" />
-                  <circle cx="345" cy="374" r="9" />
-                  <circle cx="278" cy="280" r="11" />
-                </g>
-                <path
-                  d="M152 396L250 450L345 374L278 280L210 210"
-                  stroke="var(--accent)"
-                  strokeWidth="2"
-                  strokeDasharray="7 7"
-                  fill="none"
-                  opacity=".8"
-                />
-                <path
-                  d="M211 228L210 210L228 218"
-                  fill="none"
-                  stroke="var(--accent)"
-                  strokeWidth="3"
-                />
-              </svg>
-              <div className="pitch-tag">
-                <span className="tiny-label">YOUR NEXT MOVE</span>
-                <strong>
-                  STARTS HERE. <ArrowUpRight size={24} />
-                </strong>
-              </div>
-            </div>
-            <div className="visual-bottom">
-              <span>PASSION. PURPOSE. FOOTBALL.</span>
-              <span>VL / 01</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <CompetitionHero />
       <div className="facts-strip">
         <div className="container facts-grid">
           <div>

@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { registrationSchema, normalizePhone } from "@/lib/validations/registration";
+import {
+  registrationSchema,
+  teamFieldsSchema,
+  normalizePhone,
+} from "@/lib/validations/registration";
 import { registrationAvailability, canEdit, permittedAction } from "@/lib/registration/rules";
 import { whatsappLink, paymentMessage } from "@/lib/whatsapp";
 import { csvCell, csv } from "@/lib/csv";
+import { authenticatorQrSource } from "@/lib/mfa";
 import type { OperationalSettings } from "@/types/domain";
 const settings: OperationalSettings = {
   mode: "test",
@@ -31,6 +36,17 @@ describe("registration validation", () => {
     expect(result.email).toBeNull();
   });
   it.each([
+    { email: "", additional_information: "" },
+    { email: "manager@example.com", additional_information: "" },
+    { email: "", additional_information: "A note for the organizer" },
+  ])("accepts browser-normalized optional fields at both server entry points", (optional) => {
+    const submitted = JSON.parse(
+      JSON.stringify(registrationSchema.parse({ ...valid, ...optional })),
+    );
+    expect(registrationSchema.safeParse(submitted).success).toBe(true);
+    expect(teamFieldsSchema.safeParse(submitted).success).toBe(true);
+  });
+  it.each([
     { ...valid, team_name: "" },
     { ...valid, phone: "123" },
     { ...valid, accepted_rules: false },
@@ -44,6 +60,24 @@ describe("registration validation", () => {
     expect(normalizePhone("+14155552671")).toBeNull();
   });
 });
+describe("authenticator QR rendering", () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0h1v1H0z"/></svg>\n';
+  it.each([
+    svg,
+    `data:image/svg+xml;utf-8,${svg}`,
+    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+  ])("renders SVG enrollment images without raw control characters or URL fragments", (input) => {
+    const source = authenticatorQrSource(input);
+    expect(source).not.toMatch(/\s/);
+    expect(new URL(source).hash).toBe("");
+    expect(decodeURIComponent(source.slice(source.indexOf(",") + 1)).trim()).toBe(svg.trim());
+  });
+  it("preserves base64 enrollment images", () => {
+    const source = "data:image/svg+xml;base64,PHN2Zy8+";
+    expect(authenticatorQrSource(`${source}\n`)).toBe(source);
+  });
+});
+
 describe("availability and edits", () => {
   it("fails closed without configuration", () =>
     expect(registrationAvailability(null)).toBeTruthy());
@@ -70,21 +104,23 @@ describe("availability and edits", () => {
   });
 });
 describe("WhatsApp handoff", () => {
-  it("encodes the saved reference, manager and team", () => {
+  it("opens the choice page without autolaunch and preserves the registration details", () => {
     const text = paymentMessage({
       reference: "VL-TEST-2026-000001",
       team: "Eagles & Stars",
       manager: "Ada Okafor",
       fee: 100,
     });
-    const link = whatsappLink("+234 803 123 4567", text)!;
-    expect(link).toContain("https://wa.me/2348031234567?");
-    expect(new URL(link).searchParams.get("text")).toBe(text);
+    const link = new URL(whatsappLink("+234 803 123 4567", text)!);
+    expect(link.origin).toBe("https://api.whatsapp.com");
+    expect(link.pathname).toBe("/send");
+    expect(link.searchParams.get("phone")).toBe("2348031234567");
+    expect(link.searchParams.get("text")).toBe(text);
+    expect(link.searchParams.get("autoload")).toBe("0");
     expect(text).toContain("Eagles & Stars");
   });
-  it("rejects missing and malformed organizer numbers", () => {
-    expect(whatsappLink("", "Hello")).toBeNull();
-    expect(whatsappLink("08031234567", "Hello")).toBeNull();
+  it.each(["", "08031234567"])("rejects a missing or malformed organizer number: %s", (number) => {
+    expect(whatsappLink(number, "Hello")).toBeNull();
   });
 });
 describe("CSV export", () => {

@@ -22,12 +22,6 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     root: process.cwd(),
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
   },
 };
 

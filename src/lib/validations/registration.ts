@@ -38,14 +38,14 @@ export const teamFieldsSchema = z.object({
   whatsapp_number: phone,
   email: z
     .union([z.literal(""), z.email("Enter a valid email address.")])
-    .optional()
+    .nullish()
     .transform((v) => v || null),
   location: z.string().trim().min(2, "Enter your town or local government area.").max(120),
   additional_information: z
     .string()
     .trim()
     .max(1000)
-    .optional()
+    .nullish()
     .transform((v) => v || null),
 });
 export const registrationSchema = teamFieldsSchema.extend({

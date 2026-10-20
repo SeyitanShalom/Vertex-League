@@ -14,10 +14,12 @@ npm.cmd run dev
 
 Open http://localhost:3000. Without credentials the public pages render, while registration and sign-in show setup states. No mock registrations or fake payment successes are generated.
 
+Development uses Webpack after local Turbopack sessions stalled on organizer detail pages. Production builds still use Turbopack. See the latest [validation notes](docs/VALIDATION.md) for the verified workflow and runtime checks.
+
 ## Connect Supabase for testing
 
 1. Create a dedicated Supabase **test** project. Use a separate project and deployment for live data.
-2. In its SQL editor apply all files in `supabase/migrations/` in filename order. Alternatively, with Supabase CLI installed, run `supabase link --project-ref YOUR_TEST_PROJECT_REF` then `supabase db push` from this directory. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private `team-logos` bucket.
+2. Apply the files in `supabase/migrations/` in filename order using Supabase MCP's `apply_migration`, or initialize/link the Supabase CLI and run `supabase db push`. These methods record migration history; apply only pending migrations to an existing database. The connected Vertex League test project's migrations are already applied, as recorded in `docs/VALIDATION.md`. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private storage compatibility for previously stored logos. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
 3. Set the project URL, publishable key and server secret key in `.env.local`. A legacy service-role key can be used as `SUPABASE_SECRET_KEY`; it must remain server-only.
 4. Generate a token secret and copy the result into `STATUS_TOKEN_SECRET`:
 
@@ -135,8 +137,9 @@ After testing, create a separate live Supabase project, apply the migrations and
 - **Approval blocked:** confirm payment and physical screening, and ensure the registration deadline has passed in live mode.
 - **Edits locked:** ask the organizer to Request corrections; final records stay locked.
 - **Team logo:** send the image directly to the organizer on WhatsApp using the payment or private status page's chat link. Include the saved registration reference; the website does not upload files or synchronize WhatsApp attachments.
+- **WhatsApp desktop app will not open:** the receipt/logo button opens WhatsApp's choice page. Select **Continue to WhatsApp Web**, link your phone if prompted, then attach the receipt/logo and press Send in WhatsApp.
 - **Rate limit reached locally:** unknown/local ingress uses a shared persistent bucket; wait for expiry rather than disabling live protection.
 - **CSV interrupted:** a query/network failed; retry. Internal notes and private tokens/links are omitted.
 - **Development dependency advisory:** see [security notes](docs/SECURITY.md); production packages are audited separately.
 
-See [agreed requirements](docs/REQUIREMENTS.md). Hosted Supabase configuration, a real test transfer, organizer WhatsApp handoff and physical screening still require external setup/operator verification.
+See [agreed requirements](docs/REQUIREMENTS.md) and [validation notes](docs/VALIDATION.md). The hosted test configuration, organizer MFA and simulated admin workflow are verified. An actual test transfer, receipt/logo delivery through WhatsApp, physical screening and production deployment remain to be verified manually.
