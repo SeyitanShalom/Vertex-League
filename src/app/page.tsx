@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, ClipboardList, ShieldCheck, Trophy } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompetitionHero } from "@/components/home/competition-hero";
+import { Reveal } from "@/components/motion/reveal";
 import { competition } from "@/lib/config/competition";
 import { deploymentMode, getSettings, operationalContact } from "@/lib/config/server";
 import { registrationAvailability } from "@/lib/registration/rules";
@@ -39,7 +40,7 @@ export default async function Home() {
     <>
       <CompetitionHero />
       <div className="facts-strip">
-        <div className="container facts-grid">
+        <Reveal className="container facts-grid" distance={16}>
           <div>
             <span className="tiny-label">
               {mode === "test" ? "TEST REGISTRATION FEE" : "TEAM REGISTRATION"}
@@ -62,25 +63,25 @@ export default async function Home() {
               <strong>{dateLabel(settings.registration_deadline)}</strong>
             </div>
           )}
-        </div>
+        </Reveal>
       </div>
       <section id="about" className="section section-light">
         <div className="container">
-          <div className="section-heading">
+          <Reveal className="section-heading">
             <p className="eyebrow">01 / THE COMPETITION</p>
             <h2>
               Football is better
               <br />
               when you’re <span className="display-word">part of it.</span>
             </h2>
-          </div>
+          </Reveal>
           <div className="about-grid">
-            <p className="about-lead">
+            <Reveal as="p" className="about-lead">
               You bring the players.
               <br />
               We bring the next chapter.
-            </p>
-            <div>
+            </Reveal>
+            <Reveal delay={0.08}>
               <p>
                 Vertex League starts with teams ready to step forward. Register your side, complete
                 your payment, and get ready for physical screening.
@@ -102,30 +103,30 @@ export default async function Home() {
               <Link className="text-link dark-link" href="#how-it-works">
                 See how registration works <ArrowUpRight size={18} />
               </Link>
-            </div>
+            </Reveal>
           </div>
           <div className="principles">
-            <div>
+            <Reveal>
               <Trophy />
               <h3>Your team. Your opportunity.</h3>
               <p>A dedicated registration journey for every team ready to take part.</p>
-            </div>
-            <div>
+            </Reveal>
+            <Reveal delay={0.08}>
               <ClipboardList />
               <h3>A clear path to entry.</h3>
               <p>Know what comes next, from your first submission to final clearance.</p>
-            </div>
-            <div>
+            </Reveal>
+            <Reveal delay={0.16}>
               <ShieldCheck />
               <h3>Fairness comes first.</h3>
               <p>Physical screening checks team and player eligibility before approval.</p>
-            </div>
+            </Reveal>
           </div>
         </div>
       </section>
       <section id="how-it-works" className="section">
         <div className="container">
-          <div className="section-heading heading-row">
+          <Reveal className="section-heading heading-row">
             <div>
               <p className="eyebrow">02 / FROM SIGN-UP TO KICK-OFF</p>
               <h2>
@@ -138,21 +139,21 @@ export default async function Home() {
               A straightforward process.
               <br />A reference you can follow all the way.
             </p>
-          </div>
+          </Reveal>
           <div className="steps-grid">
-            {steps.map((step) => (
-              <article key={step.number} className="step">
+            {steps.map((step, index) => (
+              <Reveal as="article" key={step.number} className="step" delay={index * 0.08}>
                 <span className="step-number">{step.number}</span>
                 <h3>{step.title}</h3>
                 <p>{step.text}</p>
-              </article>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
       <section id="registration" className="section section-accent">
         <div className="container registration-callout">
-          <div>
+          <Reveal>
             <p className="eyebrow">03 / PUT YOUR NAME IN</p>
             <h2>
               Your team’s
@@ -172,8 +173,8 @@ export default async function Home() {
             <Link href="/access" className="returning-link">
               Already registered? Open your private link ↗
             </Link>
-          </div>
-          <div className="entry-card">
+          </Reveal>
+          <Reveal className="entry-card" delay={0.1}>
             <div className="entry-card-top">
               <span>TEAM ENTRY</span>
               <Badge>{mode === "test" ? "TEST MODE" : "VERTEX LEAGUE"}</Badge>
@@ -207,12 +208,12 @@ export default async function Home() {
               </p>
             )}
             {unavailable && <p className="small">{unavailable}</p>}
-          </div>
+          </Reveal>
         </div>
       </section>
       <section id="rules" className="section section-light">
         <div className="container rules-grid">
-          <div>
+          <Reveal>
             <p className="eyebrow">04 / BEFORE YOU REGISTER</p>
             <h2>
               A level
@@ -222,8 +223,8 @@ export default async function Home() {
             <p className="muted">
               Read the requirements and refund policy before putting your team forward.
             </p>
-          </div>
-          <div className="rules-list">
+          </Reveal>
+          <Reveal className="rules-list" delay={0.08}>
             {competition.rules.concat(competition.eligibility).map((rule, i) => (
               <div key={rule}>
                 <span>{String(i + 1).padStart(2, "0")}</span>
@@ -242,12 +243,12 @@ export default async function Home() {
                 <p>Screening date: {contact.screeningDate}</p>
               </div>
             )}
-          </div>
+          </Reveal>
         </div>
       </section>
       <section id="faq" className="section">
         <div className="container faq-grid">
-          <div>
+          <Reveal>
             <p className="eyebrow">05 / GOOD TO KNOW</p>
             <h2>
               The questions.
@@ -255,8 +256,8 @@ export default async function Home() {
               <span className="display-word">The answers.</span>
             </h2>
             <p className="muted">Everything you need for your first step.</p>
-          </div>
-          <div className="faq-list">
+          </Reveal>
+          <Reveal className="faq-list" delay={0.08}>
             {competition.faq.map((item) => (
               <details key={item.question}>
                 <summary>
@@ -266,16 +267,16 @@ export default async function Home() {
                 <p>{item.answer}</p>
               </details>
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>
       <section className="closing-strip">
-        <div className="container">
+        <Reveal className="container" distance={16}>
           <h2>THE NEXT MOVE IS YOURS.</h2>
           <Link href="/register" aria-label="Register your team">
             <ArrowUpRight size={40} />
           </Link>
-        </div>
+        </Reveal>
       </section>
     </>
   );

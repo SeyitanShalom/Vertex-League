@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { JadeSkyBackground } from "@/components/layout/jade-sky-background";
+import { MotionProvider } from "@/components/motion/motion-provider";
 import { deploymentMode, siteUrl } from "@/lib/config/server";
 import "./globals.css";
 import "./brand-fonts.css";
@@ -25,9 +26,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en" data-scroll-behavior="smooth">
       <body>
         <JadeSkyBackground />
-        <Header testMode={deploymentMode() === "test"} />
-        <main id="main">{children}</main>
-        <Footer />
+        <MotionProvider>
+          <Header testMode={deploymentMode() === "test"} />
+          <main id="main">{children}</main>
+          <Footer />
+        </MotionProvider>
       </body>
     </html>
   );

@@ -10,7 +10,7 @@
   --border: #dce0ed;
   --border-strong: #828ba6;
   --paper: #ffffff;
-  --ink: #10104a;
+  --ink: var(--brand-primary);
   --muted-on-light: var(--muted);
   --border-on-light: #d0d3e2;
   --surface: #ffffff;
@@ -202,9 +202,6 @@ svg {
   background: var(--brand-primary);
   color: #ffffff;
 }
-.button-primary:hover {
-  background: #1717a0;
-}
 .button-primary svg {
   color: var(--brand-accent);
 }
@@ -312,36 +309,13 @@ svg {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  flex-shrink: 0;
+  width: 148px;
 }
-.brand-secondary {
+.brand-logo {
   display: block;
-  font-size: 9px;
-  letter-spacing: 0.37em;
-  margin-top: 5px;
-  font-weight: 500;
-}
-.brand-mark {
-  position: relative;
-  font-size: 43px;
-  color: var(--brand-primary);
-  font-weight: 900;
-  line-height: 1;
-  font-style: italic;
-  letter-spacing: -0.1em;
-  padding-right: 5px;
-}
-.brand-mark span {
-  position: absolute;
-  right: 3px;
-  top: 2px;
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
+  width: 100%;
+  height: auto;
 }
 .desktop-nav {
   display: flex;
@@ -367,6 +341,10 @@ svg {
   border: 0;
   color: var(--foreground);
   padding: 10px;
+}
+.mobile-menu {
+  display: none;
+  overflow: hidden;
 }
 .mobile-nav {
   padding: 15px 25px;
@@ -1430,6 +1408,9 @@ td a {
   .menu-button {
     display: block;
   }
+  .mobile-menu {
+    display: block;
+  }
   .nav-inner {
     height: 76px;
   }
@@ -1549,14 +1530,7 @@ td a {
     margin-left: 4px;
   }
   .brand {
-    font-size: 16px;
-    gap: 10px;
-  }
-  .brand-mark {
-    font-size: 36px;
-  }
-  .brand-secondary {
-    font-size: 8px;
+    width: 128px;
   }
   .nav-register {
     display: none;
@@ -1697,6 +1671,7 @@ td a {
     width: 28px;
   }
   .footer-top {
+    flex-wrap: wrap;
     gap: 30px;
   }
   .footer-links {
@@ -1798,6 +1773,10 @@ td a {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .motion-reveal {
+    opacity: 1 !important;
+    transform: none !important;
   }
   *,
   *:before,
