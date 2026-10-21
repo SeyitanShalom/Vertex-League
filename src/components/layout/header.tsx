@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
@@ -7,16 +8,14 @@ import { Button } from "@/components/ui/button";
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Vertex League home">
-      <svg
+      <Image
         className="brand-logo"
-        viewBox="226 1086 2411 1026"
-        width="2411"
-        height="1026"
-        aria-hidden="true"
-      >
-        {/* Frame the artwork within the supplied PNG's transparent 3000px canvas. */}
-        <image href="/LOGO%205.png" width="3000" height="3000" />
-      </svg>
+        src="/LOGO%205.png"
+        width={3000}
+        height={3000}
+        sizes="(max-width: 500px) 130px, 150px"
+        alt=""
+      />
     </Link>
   );
 }

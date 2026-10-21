@@ -310,12 +310,21 @@ svg {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  width: 148px;
+  position: relative;
+  overflow: hidden;
+  width: 120px;
+  aspect-ratio: 2411 / 1026;
 }
 .brand-logo {
   display: block;
-  width: 100%;
+  /* Frame the artwork within the PNG's transparent 3000px canvas. */
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 124.43%;
   height: auto;
+  max-width: none;
+  transform: translate(-7.533%, -36.2%);
 }
 .desktop-nav {
   display: flex;
@@ -1530,7 +1539,7 @@ td a {
     margin-left: 4px;
   }
   .brand {
-    width: 128px;
+    width: 104px;
   }
   .nav-register {
     display: none;
