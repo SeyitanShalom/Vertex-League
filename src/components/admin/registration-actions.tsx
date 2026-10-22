@@ -25,12 +25,14 @@ export function RegistrationActions({
   status,
   refund,
   notes,
+  hasManagerAccount,
 }: {
   id: string;
   payment: PaymentStatus;
   status: RegistrationStatus;
   refund: RefundStatus;
   notes: string;
+  hasManagerAccount: boolean;
 }) {
   const [selected, setSelected] = useState<AdminAction | null>(null);
   const [reason, setReason] = useState("");
@@ -110,7 +112,7 @@ export function RegistrationActions({
             "notes",
             "recover_access",
           ] as AdminAction[]
-        ).map((action) => (
+        ).filter((action) => action !== "recover_access" || !hasManagerAccount).map((action) => (
           <Button
             key={action}
             disabled={!permittedAction(action, payment, status, refund)}

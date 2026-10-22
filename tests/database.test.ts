@@ -5,6 +5,9 @@ import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect } from
 let db: PGlite;
 const admin = "11111111-1111-4111-8111-111111111111";
 const outsider = "22222222-2222-4222-8222-222222222222";
+const manager = "33333333-3333-4333-8333-333333333333";
+const unverifiedManager = "44444444-4444-4444-8444-444444444444";
+const otherManager = "55555555-5555-4555-8555-555555555555";
 const tokenHash = "a".repeat(64);
 const payloadHash = "b".repeat(64);
 const team = {
@@ -25,6 +28,17 @@ async function register(
   const result = await db.query<{ result: Saved }>(
     "select public.create_team_registration($1,$2::jsonb,$3::uuid,$4,$5) result",
     [mode, JSON.stringify(data), key, tokenHash, payloadHash],
+  );
+  return result.rows[0].result;
+}
+async function registerManager(
+  data: Record<string, unknown> = team,
+  key = randomUUID(),
+  userId = manager,
+) {
+  const result = await db.query<{ result: Saved }>(
+    "select public.create_manager_registration($1,$2::jsonb,$3::uuid,$4,$5,$6::uuid) result",
+    ["test", JSON.stringify(data), key, tokenHash, payloadHash, userId],
   );
   return result.rows[0].result;
 }
@@ -51,11 +65,16 @@ beforeAll(async () => {
   db = new PGlite();
   await db.waitReady;
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
-    create schema auth; create table auth.users(id uuid primary key);
+    create schema auth; create table auth.users(id uuid primary key,phone text,phone_confirmed_at timestamptz);
     create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
     create function auth.uid() returns uuid language sql stable as $$select (auth.jwt()->>'sub')::uuid$$;
     create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
-    insert into auth.users values('${admin}'),('${outsider}'); grant usage on schema public,auth to anon,authenticated,service_role;`);
+    insert into auth.users(id) values('${admin}'),('${outsider}');
+    insert into auth.users(id,phone,phone_confirmed_at) values
+      ('${manager}','+2348031234567',now()),
+      ('${unverifiedManager}','+2348031234567',null),
+      ('${otherManager}','+2348031234568',now());
+    grant usage on schema public,auth to anon,authenticated,service_role;`);
   const migrationDirectory = new URL("../supabase/migrations/", import.meta.url);
   const migrations = (await readdir(migrationDirectory))
     .filter((file) => /^\d+_.+\.sql$/.test(file))
@@ -182,6 +201,156 @@ describe("real PostgreSQL registration rules", () => {
     await expect(
       db.query("select public.correct_team_registration($1,$2,$3)", [r.id, "c".repeat(64), team]),
     ).rejects.toThrow("access_denied");
+  });
+});
+describe("manager account ownership", () => {
+  it("stores a cross-device draft and clears it on submission", async () => {
+    const draft = { team_name: "Eagles FC", manager_name: "Ada Okafor" };
+    await db.query("select public.save_manager_draft($1,$2,$3::jsonb)", [
+      "test",
+      manager,
+      JSON.stringify(draft),
+    ]);
+    const before = await db.query<{ data: typeof draft }>(
+      "select public.load_manager_draft($1,$2) data",
+      ["test", manager],
+    );
+    expect(before.rows[0].data).toEqual(draft);
+    await registerManager();
+    const after = await db.query<{ data: null }>("select public.load_manager_draft($1,$2) data", [
+      "test",
+      manager,
+    ]);
+    expect(after.rows[0].data).toBeNull();
+  });
+  it("rejects saving a draft after registration", async () => {
+    await registerManager();
+    await expect(
+      db.query("select public.save_manager_draft($1,$2,$3::jsonb)", [
+        "test",
+        manager,
+        JSON.stringify({ team_name: "Another" }),
+      ]),
+    ).rejects.toThrow("already_registered");
+  });
+  it("atomically links a verified manager and returns the same registration on retry", async () => {
+    const key = randomUUID();
+    const first = await registerManager(team, key);
+    const second = await registerManager(team, key);
+    expect(first.id).toBe(second.id);
+    const result = await db.query<{ manager_user_id: string }>(
+      "select manager_user_id from public.registrations where id=$1",
+      [first.id],
+    );
+    expect(result.rows[0].manager_user_id).toBe(manager);
+  });
+  it("rejects a second team for the same manager", async () => {
+    await registerManager();
+    await expect(registerManager({ ...team, team_name: "Lions FC" })).rejects.toThrow(
+      "already_registered",
+    );
+  });
+  it("requires a confirmed phone", async () => {
+    await expect(registerManager(team, randomUUID(), unverifiedManager)).rejects.toThrow(
+      "access_denied",
+    );
+  });
+  it("requires the signed-in phone to match the team", async () => {
+    await expect(registerManager({ ...team, phone: "+2348031234568" })).rejects.toThrow(
+      "access_denied",
+    );
+  });
+  it("rejects a legacy claim with the wrong token", async () => {
+    const saved = await register();
+    await expect(
+      db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
+        saved.id,
+        "c".repeat(64),
+        manager,
+        "d".repeat(64),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("rejects a legacy claim without a verified phone", async () => {
+    const saved = await register();
+    await expect(
+      db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
+        saved.id,
+        tokenHash,
+        unverifiedManager,
+        "d".repeat(64),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("rejects a legacy claim from a different verified phone", async () => {
+    const saved = await register();
+    await expect(
+      db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
+        saved.id,
+        tokenHash,
+        otherManager,
+        "d".repeat(64),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("claims a legacy registration only once", async () => {
+    const saved = await register();
+    await db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
+      saved.id,
+      tokenHash,
+      manager,
+      "d".repeat(64),
+    ]);
+    const result = await db.query<{ manager_user_id: string; status_token_hash: string }>(
+      "select manager_user_id,status_token_hash from public.registrations where id=$1",
+      [saved.id],
+    );
+    expect(result.rows[0].manager_user_id).toBe(manager);
+    expect(result.rows[0].status_token_hash).toBe("d".repeat(64));
+    await expect(
+      db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
+        saved.id,
+        tokenHash,
+        manager,
+        "e".repeat(64),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("allows corrections only for the linked account", async () => {
+    const saved = await registerManager();
+    await db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
+      saved.id,
+      manager,
+      JSON.stringify({ ...team, location: "Surulere" }),
+    ]);
+    const result = await db.query<{ location: string }>(
+      "select location from public.teams where id=$1",
+      [saved.team_id],
+    );
+    expect(result.rows[0].location).toBe("Surulere");
+    await expect(
+      db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
+        saved.id,
+        outsider,
+        JSON.stringify(team),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("keeps manager draft data unavailable to public clients", async () => {
+    await authenticate(manager, "aal1");
+    await expect(db.query("select * from public.manager_registration_drafts")).rejects.toThrow(
+      /permission denied/i,
+    );
+  });
+  it("keeps manager mutation RPCs unavailable to public clients", async () => {
+    await authenticate(manager, "aal1");
+    await expect(registerManager()).rejects.toThrow(/permission denied/i);
+  });
+  it("keeps draft RPCs unavailable to public clients", async () => {
+    await authenticate(manager, "aal1");
+    await expect(
+      db.query("select public.load_manager_draft($1,$2)", ["test", manager]),
+    ).rejects.toThrow(/permission denied/i);
   });
 });
 describe("database authorization and administrative transitions", () => {

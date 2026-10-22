@@ -15,12 +15,14 @@ export async function updateRegistration(
   const { id, action, reason, ...details } = parsed.data;
   const { data: registration, error: lookupError } = await client
     .from("registrations")
-    .select("registration_reference")
+    .select("registration_reference,manager_user_id")
     .eq("id", id)
     .eq("mode", deploymentMode())
     .maybeSingle();
   if (lookupError || !registration)
     return { error: "This registration is not available in the current environment." };
+  if (action === "recover_access" && registration.manager_user_id)
+    return { error: "This team uses manager sign-in. Recover the manager account instead." };
   const token = action === "recover_access" ? newAccessToken() : null;
   const { error } = await client.rpc("admin_registration_action", {
     p_id: id,

@@ -41,20 +41,14 @@ export function AccessRequired() {
     <section className="container narrow page-space">
       <div className="empty-state">
         <ShieldCheck size={40} />
-        <p className="eyebrow">Private registration</p>
-        <h1>Your access link is required.</h1>
-        <p>
-          Open the private link you saved after registering. A registration reference alone cannot
-          unlock team details.
-        </p>
+        <p className="eyebrow">MANAGER ACCESS</p>
+        <h1>Sign in to view your team.</h1>
+        <p>Use the phone number linked to your registration.</p>
         <Button asChild>
-          <Link href="/access">
-            Open a private link <ArrowUpRight size={17} />
+          <Link href="/manager/sign-in">
+            Sign in <ArrowUpRight size={17} />
           </Link>
         </Button>
-        <p className="small muted">
-          Lost your link? Contact the organizer for identity-verified recovery.
-        </p>
       </div>
     </section>
   );

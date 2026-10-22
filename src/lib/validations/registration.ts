@@ -55,6 +55,15 @@ export const registrationSchema = teamFieldsSchema.extend({
   website: z.string().max(0, "Unable to submit this registration."),
 });
 export type RegistrationInput = z.input<typeof registrationSchema>;
+export const registrationDraftSchema = z.object({
+  team_name: z.string().max(80),
+  location: z.string().max(120),
+  manager_name: z.string().max(100),
+  whatsapp_number: z.string().max(24),
+  email: z.string().max(254),
+  additional_information: z.string().max(1000),
+}).strict();
+export type RegistrationDraft = z.infer<typeof registrationDraftSchema>;
 export const referenceSchema = z.string().regex(/^[A-Z0-9-]{5,40}$/);
 export const accessTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 export const adminActionSchema = z.object({

@@ -25,6 +25,7 @@ export interface Team {
 }
 export interface Registration {
   id: string;
+  manager_user_id?: string | null;
   mode: Mode;
   team_id: string;
   registration_reference: string;
@@ -47,7 +48,9 @@ export interface Registration {
   }[];
   refunds: { amount: number | string; refunded_at: string; transfer_reference: string } | null;
 }
-export type PublicRegistration = Omit<Registration, "admin_notes">;
+export type PublicRegistration = Omit<Registration, "admin_notes"> & {
+  accessMode: "manager" | "legacy";
+};
 export type AdminAction =
   | "payment_received"
   | "reject_payment"

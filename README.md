@@ -1,6 +1,6 @@
 # Vertex League
 
-A Next.js football competition website with persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, private status pages, and an authenticated organizer dashboard. Initial configuration: **test mode, NGN 100 per team**. Live mode defaults to NGN 34,000 and stays closed until a deadline is configured.
+A Next.js football competition website with manager phone sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. Initial configuration: **test mode, NGN 100 per team**. Live mode defaults to NGN 34,000 and stays closed until a deadline is configured.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 ## Connect Supabase for testing
 
 1. Create a dedicated Supabase **test** project. Use a separate project and deployment for live data.
-2. Apply the files in `supabase/migrations/` in filename order using Supabase MCP's `apply_migration`, or initialize/link the Supabase CLI and run `supabase db push`. These methods record migration history; apply only pending migrations to an existing database. The connected Vertex League test project's migrations are already applied, as recorded in `docs/VALIDATION.md`. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private storage compatibility for previously stored logos. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
+2. Apply the files in `supabase/migrations/` in filename order using Supabase MCP's `apply_migration`, or initialize/link the Supabase CLI and run `supabase db push`. These methods record migration history; apply only pending migrations to an existing database. The new `202610210001_manager_accounts.sql` migration has **not** been applied to the hosted test project by this code change. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private storage compatibility for previously stored logos. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
 3. Set the project URL, publishable key and server secret key in `.env.local`. A legacy service-role key can be used as `SUPABASE_SECRET_KEY`; it must remain server-only.
 4. Generate a token secret and copy the result into `STATUS_TOKEN_SECRET`:
 
@@ -29,13 +29,13 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 
 5. Keep `COMPETITION_MODE=test`. Add the test bank name, beneficiary name, ten-digit Nigerian account number and organizer WhatsApp number in full international format (`234...`). Blank payment/contact values close registration safely. A real test transfer requires a valid account and involves real money; invented account details only test presentation.
 6. Set `SITE_URL=http://localhost:3000` locally, or the exact HTTPS origin of the deployed test site. Restart after environment changes.
-7. In Supabase Auth disable public user signups. Add an email/password administrator through Authentication → Users with confirmed email and a strong password. Authorize its UUID in SQL:
+7. In Supabase Auth, allow new users to sign up, enable phone sign-in, and configure an SMS provider. Set Auth OTP/rate limits. CAPTCHA challenge/token handling is **not wired yet**, so do not enable enforced CAPTCHA in Supabase until that is implemented and tested before public launch. The website sends codes through Supabase Auth; no SMS provider credentials belong in this app's `.env.local`. Add an email/password administrator through Authentication → Users with confirmed email and a strong password. Authorize its UUID in SQL:
 
    ```sql
    insert into public.admin_members(user_id) values ('YOUR_ADMIN_USER_UUID');
    ```
 
-8. Visit `/admin/login`. First login requires enrolling an authenticator app; subsequent logins require its six-digit code. The server and database both enforce the allowlist and MFA. Configure Supabase Auth rate limits. If an authenticator is lost, a trusted Supabase project administrator must recover/reset its factor before re-enrollment; there is no public MFA bypass.
+8. Visit `/manager/sign-in` and verify real SMS delivery with a test phone before opening registration. Visit `/admin/login`; first admin login requires enrolling an authenticator app, and subsequent logins require its six-digit code. The server and database both enforce the admin allowlist and MFA. If an authenticator is lost, a trusted Supabase project administrator must recover/reset its factor before re-enrollment; there is no public MFA bypass.
 9. Review Supabase Security Advisor. Do not add broad public policies or public storage access to work around configuration errors.
 
 ## Configuration
@@ -79,33 +79,36 @@ Motion powers the hero entrances, scroll reveals, staggered cards, and mobile me
 
 ## Registration and administration
 
-1. A manager submits `/register`. Server validation and a database transaction save team/contact details, fee snapshot, pending payment, reference and token hash. Idempotent retries avoid duplicate records.
-2. `/payment/[reference]` displays the stored fee and configured bank account. The manager saves the private link, transfers the fee, opens WhatsApp, attaches the receipt and presses Send. The website does not read WhatsApp messages or automatically attach/send files.
+1. A manager verifies a phone code at `/manager/sign-in`, then completes `/register`. The verified phone is prefilled and cannot be edited in the form. **Save progress for later** stores an unfinished draft against the account; it does not reserve a place. Submission atomically links one team to the manager account and saves the fee snapshot, pending payment and reference. Idempotent retries avoid duplicate records.
+2. `/payment/[reference]` displays the stored fee and configured bank account to the signed-in manager. The manager transfers the fee, opens WhatsApp, attaches the receipt and presses Send. The website does not read WhatsApp messages or automatically attach/send files.
 3. The organizer checks the actual bank account and clicks **Payment received** in `/admin`. The team's place is provisionally booked; it is not yet approved.
 4. After the deadline the team/players attend physical screening. The admin attests that screening passed and clicks **Approve team** to complete entry. Player details are collected physically.
 5. A rejected paid team becomes eligible for a full refund. After returning the full fee manually, the organizer records **Record full refund**, the transfer reference and completion time. This action records a transfer; it does not send money.
 
 Payment rejection permits proof resubmission in the same WhatsApp chat/reference. Managers can edit submitted details before the deadline; an admin can explicitly **Request corrections** for paid teams. Correction instructions are shown to that manager; internal notes and other reasons remain private. Approved/rejected manager records are locked.
 
-For lost private links, the organizer checks identity and generates a replacement. The old link is revoked. Share the replacement manually; the website does not send it automatically.
+Existing registrations created before manager accounts can be linked once at `/manager/claim` using the original private link and a code sent to the registration's primary phone. After a successful claim, the old link no longer opens the team. Legacy registrations remain accessible by link until claimed. Account recovery after loss of the phone number is not yet automated; the organizer must verify identity before a future recovery/number-change workflow is implemented.
 
 ## Pages, files and data
 
 - `/`: landing page, registration information, rules, full-refund policy and FAQs.
-- `/register`: Phase 1 team/manager form with optional email; saving opens the payment phase.
+- `/manager/sign-in`: manager phone-code sign-in.
+- `/manager/claim`: one-time linking of an older registration to a verified account.
+- `/team`: routes the manager to their draft, legacy claim or registered team's status.
+- `/register`: signed-in Phase 1 team/manager form with optional email and cross-device draft saving.
 - `/payment/[reference]`: Phase 2 protected bank instructions, account-number copying and WhatsApp handoff for payment receipts and team logos.
-- `/registration/[reference]`: private status, corrections, WhatsApp team-logo handoff and refund progress.
-- `/access`: private-link fragment exchange for an HttpOnly access cookie.
+- `/registration/[reference]`: account-protected status, corrections, WhatsApp team-logo handoff and refund progress.
+- `/access`: legacy private-link exchange for registrations not yet claimed.
 - `/admin/login`, `/admin/mfa`: allowlisted sign-in and mandatory TOTP verification/enrollment.
 - `/admin`: actual statistics, search, date/status filters, pagination and filtered CSV export.
-- `/admin/registrations/[id]`: review, actions, notes, latest 50 audit events and link recovery.
+- `/admin/registrations/[id]`: review, actions, notes, latest 50 audit events and legacy link recovery.
 - `/api/health`: minimal readiness response; 503 until the database is configured.
 - `src/app/actions/`: validated registration/auth/admin mutations.
 - `src/lib/`: config, server-only Supabase clients, authorization, tokens, validation and query helpers.
 - `src/components/ui/`, `components.json`: locally maintained shadcn-style primitives built with Radix/CVA.
 - `supabase/migrations/`: schema, policies and constrained database functions.
 
-Tables: `competition_settings`, `teams`, `manager_contacts`, `registrations`, `payments`, `refunds`, `admin_members`, `admin_audit_logs` and `rate_limit_buckets`. Payments support a current record and future attempt history; current state changes are audited.
+Tables: `competition_settings`, `teams`, `manager_contacts`, `manager_registration_drafts`, `registrations`, `payments`, `refunds`, `admin_members`, `admin_audit_logs` and `rate_limit_buckets`. Payments support a current record and future attempt history; current state changes are audited.
 
 ## Verification commands
 
@@ -133,12 +136,12 @@ After testing, create a separate live Supabase project, apply the migrations and
 ## Troubleshooting
 
 - **Setup state:** check environment variables, token-secret length, all migrations, bank details and WhatsApp format. `/api/health` intentionally returns 503 during setup.
-- **Sign-in fails:** check the confirmed user, `admin_members` UUID and authenticator enrollment. There is no public admin signup.
+- **Manager sign-in fails:** confirm the new migration, Auth public signups, phone provider, SMS delivery and Auth rate limits. Admin sign-in still requires a confirmed user, `admin_members` UUID and authenticator enrollment; there is no public admin authorization.
 - **RPC/relationship errors:** apply all migrations in order. Refresh PostgREST's schema cache if needed with `notify pgrst, 'reload schema';` in the SQL editor.
-- **Duplicate team:** recover the existing private link; do not create another team under a reused number.
+- **Duplicate team:** sign in to the existing account or link a legacy registration; do not create another team under a reused number.
 - **Approval blocked:** confirm payment and physical screening, and ensure the registration deadline has passed in live mode.
 - **Edits locked:** ask the organizer to Request corrections; final records stay locked.
-- **Team logo:** send the image directly to the organizer on WhatsApp using the payment or private status page's chat link. Include the saved registration reference; the website does not upload files or synchronize WhatsApp attachments.
+- **Team logo:** send the image directly to the organizer on WhatsApp using the payment or team status page's chat link. Include the saved registration reference; the website does not upload files or synchronize WhatsApp attachments.
 - **WhatsApp desktop app will not open:** the receipt/logo button opens WhatsApp's choice page. Select **Continue to WhatsApp Web**, link your phone if prompted, then attach the receipt/logo and press Send in WhatsApp.
 - **Rate limit reached locally:** unknown/local ingress uses a shared persistent bucket; wait for expiry rather than disabling live protection.
 - **CSV interrupted:** a query/network failed; retry. Internal notes and private tokens/links are omitted.

@@ -1,13 +1,14 @@
 -- Run in the test project's SQL Editor after applying all migrations.
 -- These checks only read database metadata and competition settings.
 
--- Expected: 9 rows, with both checks true for every table.
+-- Expected: 10 rows, with both checks true for every table.
 with expected(table_name) as (
   values
     ('admin_members'),
     ('competition_settings'),
     ('teams'),
     ('manager_contacts'),
+    ('manager_registration_drafts'),
     ('registrations'),
     ('payments'),
     ('refunds'),
@@ -28,7 +29,7 @@ select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;
 
--- Expected: 4 rows, all true.
+-- Expected: 5 rows, all true.
 select
   'vertex_league' as migration,
   to_regprocedure('public.create_team_registration(text,jsonb,uuid,text,text)') is not null as applied
@@ -49,4 +50,14 @@ select
     where schemaname = 'public' and indexname in (
       'admin_audit_logs_admin_id_idx', 'payments_verified_by_idx',
       'refunds_recorded_by_idx', 'registrations_approved_by_idx'
-    ));
+    ))
+union all
+select
+  'manager_accounts',
+  to_regprocedure('public.create_manager_registration(text,jsonb,uuid,text,text,uuid)') is not null
+  and to_regprocedure('public.claim_manager_registration(uuid,text,uuid,text)') is not null
+  and to_regprocedure('public.correct_manager_registration(uuid,uuid,jsonb)') is not null
+  and to_regprocedure('public.load_manager_draft(text,uuid)') is not null
+  and to_regprocedure('public.save_manager_draft(text,uuid,jsonb)') is not null
+  and not has_function_privilege('authenticated',
+    'public.create_manager_registration(text,jsonb,uuid,text,text,uuid)', 'execute');

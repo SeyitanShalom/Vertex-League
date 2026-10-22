@@ -1,18 +1,16 @@
 import { test, expect } from "@playwright/test";
-test("landing page, navigation and registration setup", async ({ page }, info) => {
+test("landing page, navigation and manager sign-in", async ({ page }, info) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page).toHaveTitle(/Vertex League/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("BRING");
   await expect(page.getByText("Registration and payment details are for testing.")).toBeVisible();
-  await page.getByRole("link", { name: "Register your team", exact: true }).last().click();
-  await expect(page).toHaveURL(/\/register$/);
-  await expect(page.getByLabel("Team name", { exact: false })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save & continue to payment" })).toBeDisabled();
-  await page.getByLabel("Phone number", { exact: false }).fill("08031234567");
-  await page.getByRole("button", { name: "Use my phone number" }).click();
-  await expect(page.getByLabel("WhatsApp number", { exact: false })).toHaveValue("08031234567");
+  await page.getByRole("link", { name: "Team registration" }).click();
+  await expect(page).toHaveURL(/\/manager\/sign-in$/);
+  await expect(page.getByRole("heading", { name: "Your team starts here." })).toBeVisible();
+  await expect(page.getByLabel("Phone number")).toBeVisible();
   await page.goto("/");
   if (info.project.name === "mobile") {
     await page.getByRole("button", { name: "Open menu" }).click();
@@ -39,9 +37,7 @@ test("private pages and administrator endpoints reject unauthorized access", asy
 }) => {
   for (const path of ["/payment/VL-TEST-2026-000001", "/registration/VL-TEST-2026-000001"]) {
     await page.goto(path);
-    await expect(
-      page.getByRole("heading", { name: "Your access link is required." }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to view your team." })).toBeVisible();
   }
   await page.goto("/admin");
   await expect(page).toHaveURL(/\/admin\/login$/);

@@ -21,8 +21,8 @@ export function Brand() {
 }
 const links = [
   ["/#about", "The competition"],
-  ["/#registration", "Registration"],
   ["/#rules", "The rules"],
+  ["/#registration", "Registration"],
   ["/#faq", "FAQs"],
 ];
 
@@ -46,11 +46,11 @@ function MobileNavigation({ onClose }: { onClose: () => void }) {
             {label}
           </Link>
         ))}
-        <Link href="/register" onClick={onClose}>
+        <Link href="/#rules" onClick={onClose}>
           Register your team ↗
         </Link>
-        <Link href="/access" onClick={onClose}>
-          Find your registration
+        <Link href="/manager/sign-in" onClick={onClose}>
+          Team sign-in
         </Link>
       </nav>
     </m.div>
@@ -90,10 +90,11 @@ export function Header({ testMode }: { testMode: boolean }) {
                 {label}
               </Link>
             ))}
+            <Link href="/manager/sign-in">Team sign-in</Link>
           </nav>
           <div className="nav-actions">
             <Button asChild size="sm" className="nav-register">
-              <Link href="/register">
+              <Link href="/#rules">
                 Register your team <ArrowUpRight size={16} />
               </Link>
             </Button>

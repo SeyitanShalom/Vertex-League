@@ -3,28 +3,63 @@ import { serviceClient } from "@/lib/supabase/service";
 import { deploymentMode, hasDatabase } from "@/lib/config/server";
 import { readAccess, matchesHash } from "@/lib/security";
 import { referenceSchema, accessTokenSchema } from "@/lib/validations/registration";
+import { managerIdentity } from "@/lib/auth";
 import type { PublicRegistration, Registration } from "@/types/domain";
 
 export const registrationColumns =
-  "id,mode,team_id,registration_reference,registration_status,registration_fee,currency,submitted_at,approved_at,rejected_at,public_message,refund_status,screening_passed_at,teams(id,team_name,manager_name,phone,whatsapp_number,email,location,logo_path,additional_information),payments(id,amount,payment_status,verified_at),refunds(amount,refunded_at,transfer_reference)";
+  "id,mode,team_id,manager_user_id,registration_reference,registration_status,registration_fee,currency,submitted_at,approved_at,rejected_at,public_message,refund_status,screening_passed_at,teams(id,team_name,manager_name,phone,whatsapp_number,email,location,logo_path,additional_information),payments(id,amount,payment_status,verified_at),refunds(amount,refunded_at,transfer_reference)";
+export async function managerRegistrationReference(userId: string) {
+  if (!hasDatabase()) return null;
+  const { data, error } = await serviceClient()
+    .from("registrations")
+    .select("registration_reference")
+    .eq("mode", deploymentMode())
+    .eq("manager_user_id", userId)
+    .maybeSingle();
+  return error ? null : data?.registration_reference ?? null;
+}
+export async function legacyRegistrationForPhone(phone: string) {
+  if (!hasDatabase()) return false;
+  const { data: team, error } = await serviceClient()
+    .from("teams")
+    .select("id")
+    .eq("mode", deploymentMode())
+    .eq("phone", phone)
+    .maybeSingle();
+  if (error || !team) return false;
+  const { data: registration } = await serviceClient()
+    .from("registrations")
+    .select("id")
+    .eq("team_id", team.id)
+    .is("manager_user_id", null)
+    .maybeSingle();
+  return !!registration;
+}
 export async function ownerRegistration(
   reference: string,
   suppliedToken?: string,
 ): Promise<PublicRegistration | null> {
   if (!hasDatabase() || !referenceSchema.safeParse(reference).success) return null;
-  const token = suppliedToken ?? (await readAccess(reference));
-  if (!token || !accessTokenSchema.safeParse(token).success) return null;
   const { data, error } = await serviceClient()
     .from("registrations")
     .select(`${registrationColumns},status_token_hash`)
     .eq("registration_reference", reference)
     .eq("mode", deploymentMode())
     .maybeSingle();
-  if (error || !data || !matchesHash(token, data.status_token_hash)) return null;
+  if (error || !data) return null;
+  if (data.manager_user_id) {
+    const identity = await managerIdentity();
+    if (!identity || identity.user.id !== data.manager_user_id) return null;
+  } else {
+    const token = suppliedToken ?? (await readAccess(reference));
+    if (!token || !accessTokenSchema.safeParse(token).success || !matchesHash(token, data.status_token_hash))
+      return null;
+  }
   // Supabase nested-relation inference needs generated DB types; keep the cast at this boundary.
   const row = data as unknown as Registration & { status_token_hash: string };
   return {
     id: row.id,
+    accessMode: data.manager_user_id ? "manager" : "legacy",
     mode: row.mode,
     team_id: row.team_id,
     registration_reference: row.registration_reference,
@@ -44,7 +79,7 @@ export async function ownerRegistration(
 }
 export function safeDatabaseError(error: { code?: string; message?: string }) {
   if (error.code === "23505")
-    return "This team or manager already has a registration. Use your private link, or contact the organizer for recovery.";
+    return "This team or manager already has a registration. Sign in to your existing team or contact the organizer.";
   const known: Record<string, string> = {
     registration_closed: "Registration is currently closed.",
     deadline_passed: "The registration deadline has passed.",
@@ -57,8 +92,9 @@ export function safeDatabaseError(error: { code?: string; message?: string }) {
       "Final approval is available after the registration deadline and physical screening.",
     invalid_transition:
       "This action is not available for the current status. Refresh and check the record.",
-    duplicate_submission:
-      "This submission has already been processed. Use your existing private link.",
+    duplicate_submission: "This submission has already been processed. Open your team page.",
+    already_registered: "Your account already has a team. Open your team page.",
+    access_denied: "This registration could not be linked to your account. Contact the organizer.",
     reason_required: "Enter a reason for this action.",
     refund_reference_required: "Enter the completed refund’s transfer reference.",
     invalid_refund_date: "Enter a refund date after payment confirmation and no later than now.",

@@ -157,6 +157,7 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
               status={row.registration_status}
               refund={row.refund_status}
               notes={row.admin_notes}
+              hasManagerAccount={!!row.manager_user_id}
             />
           </section>
           <section className="panel">

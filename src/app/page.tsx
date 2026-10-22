@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Check, ClipboardList, ShieldCheck, Trophy } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Check, ClipboardList, ShieldCheck, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompetitionHero } from "@/components/home/competition-hero";
@@ -12,7 +12,7 @@ const steps = [
   {
     number: "01",
     title: "Put your team forward.",
-    text: "Save your team and manager’s details to open the payment phase. Keep your reference and private access link.",
+    text: "Sign in with your phone, then save your team and manager details to open the payment phase. Return to your team page at any time.",
   },
   {
     number: "02",
@@ -151,10 +151,50 @@ export default async function Home() {
           </div>
         </div>
       </section>
+      <section id="rules" className="section section-light">
+        <div className="container rules-grid">
+          <Reveal>
+            <p className="eyebrow">03 / BEFORE YOU REGISTER</p>
+            <h2>
+              A level
+              <br />
+              <span className="display-word">playing field.</span>
+            </h2>
+            <p className="muted">
+              Read the requirements and refund policy before putting your team forward.
+            </p>
+          </Reveal>
+          <Reveal className="rules-list" delay={0.08}>
+            {competition.rules.concat(competition.eligibility).map((rule, i) => (
+              <div key={rule}>
+                <span>{String(i + 1).padStart(2, "0")}</span>
+                <p>{rule}</p>
+              </div>
+            ))}
+            {contact.screeningVenue && (
+              <div>
+                <span>↗</span>
+                <p>Screening venue: {contact.screeningVenue}</p>
+              </div>
+            )}
+            {contact.screeningDate && (
+              <div>
+                <span>↗</span>
+                <p>Screening date: {contact.screeningDate}</p>
+              </div>
+            )}
+            <Button asChild size="lg" className="rules-next">
+              <Link href="#registration">
+                Continue to team entry <ArrowDown size={20} />
+              </Link>
+            </Button>
+          </Reveal>
+        </div>
+      </section>
       <section id="registration" className="section section-accent">
         <div className="container registration-callout">
           <Reveal>
-            <p className="eyebrow">03 / PUT YOUR NAME IN</p>
+            <p className="eyebrow">04 / PUT YOUR NAME IN</p>
             <h2>
               Your team’s
               <br />
@@ -170,8 +210,8 @@ export default async function Home() {
                 Start your registration <ArrowUpRight size={20} />
               </Link>
             </Button>
-            <Link href="/access" className="returning-link">
-              Already registered? Open your private link ↗
+            <Link href="/manager/sign-in" className="returning-link">
+              Already registered? Sign in to your team ↗
             </Link>
           </Reveal>
           <Reveal className="entry-card" delay={0.1}>
@@ -211,41 +251,6 @@ export default async function Home() {
           </Reveal>
         </div>
       </section>
-      <section id="rules" className="section section-light">
-        <div className="container rules-grid">
-          <Reveal>
-            <p className="eyebrow">04 / BEFORE YOU REGISTER</p>
-            <h2>
-              A level
-              <br />
-              <span className="display-word">playing field.</span>
-            </h2>
-            <p className="muted">
-              Read the requirements and refund policy before putting your team forward.
-            </p>
-          </Reveal>
-          <Reveal className="rules-list" delay={0.08}>
-            {competition.rules.concat(competition.eligibility).map((rule, i) => (
-              <div key={rule}>
-                <span>{String(i + 1).padStart(2, "0")}</span>
-                <p>{rule}</p>
-              </div>
-            ))}
-            {contact.screeningVenue && (
-              <div>
-                <span>↗</span>
-                <p>Screening venue: {contact.screeningVenue}</p>
-              </div>
-            )}
-            {contact.screeningDate && (
-              <div>
-                <span>↗</span>
-                <p>Screening date: {contact.screeningDate}</p>
-              </div>
-            )}
-          </Reveal>
-        </div>
-      </section>
       <section id="faq" className="section">
         <div className="container faq-grid">
           <Reveal>
@@ -273,7 +278,7 @@ export default async function Home() {
       <section className="closing-strip">
         <Reveal className="container" distance={16}>
           <h2>THE NEXT MOVE IS YOURS.</h2>
-          <Link href="/register" aria-label="Register your team">
+          <Link href="#rules" aria-label="Register your team">
             <ArrowUpRight size={40} />
           </Link>
         </Reveal>

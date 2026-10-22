@@ -43,17 +43,17 @@ export const competition = {
     {
       question: "What if my team does not pass screening?",
       answer:
-        "Teams that paid but fail eligibility approval receive a full refund of the registration fee they actually paid, with no deductions. The organizer arranges the transfer and records its progress on your private status page.",
+        "Teams that paid but fail eligibility approval receive a full refund of the registration fee they actually paid, with no deductions. The organizer arranges the transfer and records its progress on your team page.",
     },
     {
       question: "Can I correct my details or send another receipt?",
       answer:
-        "Use your private registration link to make permitted corrections. If editing is locked, contact the organizer to request a correction. You can resend proof on WhatsApp using the same reference.",
+        "Sign in to make permitted corrections. If editing is locked, contact the organizer to request a correction. You can resend proof on WhatsApp using the same reference.",
     },
     {
       question: "How do I recover my registration?",
       answer:
-        "Save your private access link after registering. If you lose it, contact the organizer, who can verify your identity and issue a replacement link.",
+        "Sign in with the phone number linked to your team. If you lose access to that number, contact the organizer for identity-verified recovery.",
     },
   ],
 };

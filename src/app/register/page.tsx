@@ -1,11 +1,27 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { TeamForm } from "@/components/registration/team-form";
 import { PageIntro } from "@/components/shared";
 import { getSettings, paymentConfigured, deploymentMode } from "@/lib/config/server";
 import { registrationAvailability } from "@/lib/registration/rules";
 import { money, dateLabel } from "@/lib/utils";
+import { managerIdentity } from "@/lib/auth";
+import { legacyRegistrationForPhone, managerRegistrationReference } from "@/lib/registration/data";
+import { serviceClient } from "@/lib/supabase/service";
+import { registrationDraftSchema } from "@/lib/validations/registration";
+import { signOutManager } from "@/app/actions/manager-auth";
+import { Button } from "@/components/ui/button";
 export const metadata: Metadata = { title: "Register your team" };
 export default async function RegisterPage() {
+  const identity = await managerIdentity();
+  if (!identity) redirect("/manager/sign-in");
+  if (await managerRegistrationReference(identity.user.id)) redirect("/team");
+  if (await legacyRegistrationForPhone(identity.phone)) redirect("/manager/claim");
+  const { data: savedDraft } = await serviceClient().rpc("load_manager_draft", {
+    p_mode: deploymentMode(),
+    p_user_id: identity.user.id,
+  });
+  const draft = registrationDraftSchema.safeParse(savedDraft);
   const settings = await getSettings();
   const disabledReason =
     registrationAvailability(settings) ||
@@ -20,9 +36,18 @@ export default async function RegisterPage() {
         title="It starts with your team."
         description="Tell us about your side, then click Save & continue to payment. We’ll save your registration and open your payment page with the bank details."
       />
+      <form action={signOutManager} style={{ marginBottom: 20 }}>
+        <Button type="submit" variant="outline">
+          Sign out
+        </Button>
+      </form>
       <div className="two-column">
         <section className="panel">
-          <TeamForm disabledReason={disabledReason} />
+          <TeamForm
+            disabledReason={disabledReason}
+            verifiedPhone={identity.phone}
+            draft={draft.success ? draft.data : undefined}
+          />
         </section>
         <aside>
           <section className="panel">
@@ -57,7 +82,7 @@ export default async function RegisterPage() {
             <h3>What happens next?</h3>
             <ol className="numbered-list">
               <li>Save your team details to open the payment phase.</li>
-              <li>Keep your reference and private access link.</li>
+              <li>Sign in later to follow your team from any device.</li>
               <li>Copy the bank details and transfer the registration fee.</li>
               <li>Send your receipt and team logo in the organizer’s WhatsApp chat.</li>
               <li>Wait for payment confirmation, then attend physical screening.</li>

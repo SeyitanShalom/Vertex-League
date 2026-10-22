@@ -20,7 +20,7 @@ export default async function PaymentPage({ params }: { params: Promise<{ refere
   if (!row) return <AccessRequired />;
   const contact = operationalContact();
   const ready = paymentConfigured();
-  const token = (await readAccess(reference))!;
+  const token = row.accessMode === "legacy" ? await readAccess(reference) : null;
   const payment = row.payments[0];
   const message = paymentMessage({
     reference,
@@ -40,7 +40,7 @@ export default async function PaymentPage({ params }: { params: Promise<{ refere
         }
         description={`Your registration for ${row.teams.team_name} has been saved. Reference: ${reference}.`}
       />
-      <SaveAccess reference={reference} link={privateLink(reference, token)} />
+      {token && <SaveAccess reference={reference} link={privateLink(reference, token)} />}
       <div className="two-column">
         <section className="panel">
           <div className="state-heading">

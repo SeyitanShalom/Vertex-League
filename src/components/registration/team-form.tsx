@@ -11,11 +11,12 @@ import {
   teamFieldsSchema,
   type RegistrationInput,
 } from "@/lib/validations/registration";
-import { registerTeam, correctTeam } from "@/app/actions/registration";
+import { registerTeam, correctTeam, saveManagerDraft } from "@/app/actions/registration";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Notice } from "@/components/shared";
 import type { Team } from "@/types/domain";
+import type { RegistrationDraft } from "@/lib/validations/registration";
 
 type Fields = keyof z.input<typeof teamFieldsSchema>;
 const fields: {
@@ -62,14 +63,19 @@ const fields: {
 export function TeamForm({
   disabledReason,
   existing,
+  verifiedPhone,
+  draft,
 }: {
   disabledReason?: string | null;
   existing?: { reference: string; team: Team };
+  verifiedPhone?: string;
+  draft?: RegistrationDraft;
 }) {
   const router = useRouter();
   const submissionKey = useRef<string | null>(null);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState<{ error?: string; success?: string }>({});
+  const [savingDraft, setSavingDraft] = useState(false);
   const schema = existing
     ? teamFieldsSchema.extend({
         accepted_rules: registrationSchema.shape.accepted_rules,
@@ -79,13 +85,15 @@ export function TeamForm({
   const form = useForm<RegistrationInput, unknown, z.output<typeof registrationSchema>>({
     resolver: zodResolver(schema),
     defaultValues: {
-      team_name: existing?.team.team_name ?? "",
-      location: existing?.team.location ?? "",
-      manager_name: existing?.team.manager_name ?? "",
-      phone: existing?.team.phone ?? "",
-      whatsapp_number: existing?.team.whatsapp_number ?? "",
-      email: existing?.team.email ?? "",
-      additional_information: existing?.team.additional_information ?? "",
+      team_name: existing?.team.team_name ?? draft?.team_name ?? "",
+      location: existing?.team.location ?? draft?.location ?? "",
+      manager_name: existing?.team.manager_name ?? draft?.manager_name ?? "",
+      phone: verifiedPhone ?? existing?.team.phone ?? "",
+      whatsapp_number:
+        existing?.team.whatsapp_number ?? draft?.whatsapp_number ?? verifiedPhone ?? "",
+      email: existing?.team.email ?? draft?.email ?? "",
+      additional_information:
+        existing?.team.additional_information ?? draft?.additional_information ?? "",
       accepted_rules: existing ? true : undefined,
       website: "",
     },
@@ -116,6 +124,28 @@ export function TeamForm({
       });
     } finally {
       submitting.current = false;
+    }
+  }
+  async function saveDraft() {
+    if (savingDraft || !verifiedPhone || existing) return;
+    setSavingDraft(true);
+    setFeedback({});
+    const values = form.getValues();
+    try {
+      setFeedback(
+        await saveManagerDraft({
+          team_name: values.team_name ?? "",
+          location: values.location ?? "",
+          manager_name: values.manager_name ?? "",
+          whatsapp_number: values.whatsapp_number ?? "",
+          email: values.email ?? "",
+          additional_information: values.additional_information ?? "",
+        }),
+      );
+    } catch {
+      setFeedback({ error: "Unable to save your progress right now." });
+    } finally {
+      setSavingDraft(false);
     }
   }
   return (
@@ -150,6 +180,7 @@ export function TeamForm({
               placeholder={field.placeholder}
               autoComplete={field.autoComplete}
               maxLength={field.name === "email" ? 254 : field.type === "tel" ? 24 : 120}
+              readOnly={field.name === "phone" && !!verifiedPhone}
               aria-invalid={!!form.formState.errors[field.name]}
               aria-describedby={
                 form.formState.errors[field.name] ? `${field.name}-error` : undefined
@@ -226,6 +257,16 @@ export function TeamForm({
               : "Save & continue to payment"}
           <ArrowUpRight size={18} />
         </Button>
+        {!existing && verifiedPhone && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void saveDraft()}
+            disabled={savingDraft}
+          >
+            {savingDraft ? "Saving..." : "Save progress for later"}
+          </Button>
+        )}
         <p className="hint">
           <LockKeyhole
             size={12}

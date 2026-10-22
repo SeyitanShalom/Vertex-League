@@ -756,6 +756,9 @@ svg {
   font-size: 13px;
   margin-top: 25px;
 }
+.rules-next {
+  margin-top: 24px;
+}
 .rules-list > div {
   display: flex;
   gap: 25px;

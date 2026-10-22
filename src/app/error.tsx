@@ -7,8 +7,7 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
         <p className="eyebrow">LET’S TRY THAT AGAIN</p>
         <h1>This page couldn’t load.</h1>
         <p>
-          Your saved registration is still associated with your private access link. Please try
-          again in a moment.
+          Your saved registration has not been changed. Please try again in a moment.
         </p>
         <Button onClick={reset}>Try again</Button>
       </div>

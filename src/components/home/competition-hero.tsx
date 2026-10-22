@@ -32,7 +32,7 @@ export function CompetitionHero() {
           </Reveal>
           <Reveal className="button-row" delay={0.18}>
             <Button asChild size="lg">
-              <Link href="/register">
+              <Link href="#rules">
                 Register your team <ArrowUpRight size={20} />
               </Link>
             </Button>

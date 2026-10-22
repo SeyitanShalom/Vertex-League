@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { SaveAccess, RefreshStatus } from "@/components/registration/private-tools";
 import { TeamForm } from "@/components/registration/team-form";
+import { signOutManager } from "@/app/actions/manager-auth";
 export const metadata: Metadata = {
   title: "Your registration",
   robots: { index: false, follow: false },
@@ -26,7 +27,7 @@ export default async function RegistrationPage({
   const row = await ownerRegistration(reference);
   if (!row) return <AccessRequired />;
   const settings = await getSettings();
-  const token = (await readAccess(reference))!;
+  const token = row.accessMode === "legacy" ? await readAccess(reference) : null;
   const contact = operationalContact();
   const payment = row.payments[0];
   const editable = canEdit(row.registration_status, settings?.registration_deadline ?? null);
@@ -60,7 +61,12 @@ export default async function RegistrationPage({
         title={row.teams.team_name}
         description={`Submitted ${dateLabel(row.submitted_at)}. Follow your team’s progress here.`}
       />
-      <SaveAccess reference={reference} link={privateLink(reference, token)} />
+      {token && <SaveAccess reference={reference} link={privateLink(reference, token)} />}
+      {row.accessMode === "manager" && (
+        <form action={signOutManager} style={{ marginBottom: 18 }}>
+          <Button type="submit" variant="outline">Sign out</Button>
+        </form>
+      )}
       <Notice
         tone={
           row.registration_status === "approved" || row.refund_status === "refunded"
@@ -145,7 +151,10 @@ export default async function RegistrationPage({
           )}
           {editable ? (
             <section className="panel">
-              <TeamForm existing={{ reference, team: row.teams }} />
+              <TeamForm
+                existing={{ reference, team: row.teams }}
+                verifiedPhone={row.accessMode === "manager" ? row.teams.phone : undefined}
+              />
             </section>
           ) : (
             <section className="panel">

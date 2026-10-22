@@ -22,7 +22,7 @@ export function Footer() {
             <Link href="/register">
               Team registration <ArrowUpRight size={14} />
             </Link>
-            <Link href="/access">
+            <Link href="/manager/sign-in">
               Your registration <ArrowUpRight size={14} />
             </Link>
             <Link href="/#rules">
