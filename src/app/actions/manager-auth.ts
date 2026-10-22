@@ -26,7 +26,10 @@ export async function signUpManager(input: unknown) {
       options: { emailRedirectTo: `${siteUrl()}/auth/callback?next=/team` },
     });
     if (error) return { error: "Unable to create this account. Check the details and try again." };
-    return { message: "Check your email for a confirmation link to continue." };
+    return {
+      message:
+        "If this email is new, check it for a confirmation link. Already have an account? Sign in or reset your password.",
+    };
   } catch {
     return { error: "Too many requests. Please wait a while and try again." };
   }
