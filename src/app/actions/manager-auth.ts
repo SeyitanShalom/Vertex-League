@@ -23,7 +23,7 @@ export async function signUpManager(input: unknown) {
       await authClient()
     ).auth.signUp({
       ...parsed.data,
-      options: { emailRedirectTo: `${siteUrl()}/auth/callback?next=/team` },
+      options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
     });
     if (error) return { error: "Unable to create this account. Check the details and try again." };
     return {
@@ -63,7 +63,7 @@ export async function requestManagerPasswordReset(rawEmail: string) {
     await (
       await authClient()
     ).auth.resetPasswordForEmail(parsed.data, {
-      redirectTo: `${siteUrl()}/auth/callback?next=/manager/reset-password`,
+      redirectTo: `${siteUrl()}/auth/confirm`,
     });
     return { message: "If this email has an account, a password-reset link is on its way." };
   } catch {
