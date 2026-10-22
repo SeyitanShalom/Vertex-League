@@ -2,16 +2,13 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { authClient } from "@/lib/supabase/server";
 import { hasDatabase } from "@/lib/config/server";
-import { normalizePhone } from "@/lib/validations/registration";
 
 export async function managerIdentity() {
   if (!hasDatabase()) return null;
   const client = await authClient();
   const { data: { user }, error } = await client.auth.getUser();
-  if (error || !user?.phone || !user.phone_confirmed_at) return null;
-  const phone = normalizePhone(user.phone);
-  if (!phone) return null;
-  return { client, user, phone };
+  if (error || !user?.email || !user.email_confirmed_at) return null;
+  return { client, user, email: user.email.trim().toLowerCase() };
 }
 
 export async function adminIdentity(requireMfa = true) {

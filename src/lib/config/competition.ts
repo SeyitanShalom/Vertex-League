@@ -53,7 +53,7 @@ export const competition = {
     {
       question: "How do I recover my registration?",
       answer:
-        "Sign in with the phone number linked to your team. If you lose access to that number, contact the organizer for identity-verified recovery.",
+        "Sign in with your verified email and password to see your team. If you forget your password, use the reset link on the sign-in page. For an older registration without a matching email, contact the organizer.",
     },
   ],
 };

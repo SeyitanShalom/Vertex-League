@@ -14,6 +14,7 @@ import { StatusBadge } from "@/components/ui/badge";
 import { SaveAccess, RefreshStatus } from "@/components/registration/private-tools";
 import { TeamForm } from "@/components/registration/team-form";
 import { signOutManager } from "@/app/actions/manager-auth";
+import { managerIdentity } from "@/lib/auth";
 export const metadata: Metadata = {
   title: "Your registration",
   robots: { index: false, follow: false },
@@ -26,6 +27,7 @@ export default async function RegistrationPage({
   const { reference } = await params;
   const row = await ownerRegistration(reference);
   if (!row) return <AccessRequired />;
+  const identity = row.accessMode === "manager" ? await managerIdentity() : null;
   const settings = await getSettings();
   const token = row.accessMode === "legacy" ? await readAccess(reference) : null;
   const contact = operationalContact();
@@ -153,7 +155,7 @@ export default async function RegistrationPage({
             <section className="panel">
               <TeamForm
                 existing={{ reference, team: row.teams }}
-                verifiedPhone={row.accessMode === "manager" ? row.teams.phone : undefined}
+                verifiedEmail={identity?.email}
               />
             </section>
           ) : (

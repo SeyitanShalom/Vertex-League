@@ -1,55 +1,42 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Phone } from "lucide-react";
-import { sendManagerCode, verifyManagerCode } from "@/app/actions/manager-auth";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight, Mail } from "lucide-react";
+import { signInManager, signUpManager } from "@/app/actions/manager-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Notice } from "@/components/shared";
 
 export function ManagerSignIn({ configured }: { configured: boolean }) {
   const router = useRouter();
-  const [phone, setPhone] = useState("");
-  const [verifiedPhone, setVerifiedPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [cooldown, setCooldown] = useState(0);
+  const params = useSearchParams();
+  const [mode, setMode] = useState<"sign-in" | "create">("sign-in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    if (!cooldown) return;
-    const timer = window.setTimeout(() => setCooldown(cooldown - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [cooldown]);
-  async function send() {
+  const [feedback, setFeedback] = useState<{ error?: string; message?: string }>({});
+  async function submit() {
     if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await sendManagerCode(phone);
-      if (result.error) setError(result.error);
-      else if (result.phone) {
-        setVerifiedPhone(result.phone);
-        setCooldown(60);
-      }
-    } catch {
-      setError("Unable to send a code right now. Please try again.");
-    } finally {
-      setBusy(false);
+    if (mode === "create" && password !== confirmation) {
+      setFeedback({ error: "Passwords do not match." });
+      return;
     }
-  }
-  async function verify() {
-    if (busy) return;
     setBusy(true);
-    setError("");
+    setFeedback({});
     try {
-      const result = await verifyManagerCode(verifiedPhone, code);
-      if (result.error) setError(result.error);
-      if (result.url) {
+      const result =
+        mode === "create"
+          ? await signUpManager({ email, password })
+          : await signInManager({ email, password });
+      setFeedback(result);
+      if ("url" in result && result.url) {
         router.replace(result.url);
         router.refresh();
       }
     } catch {
-      setError("Unable to verify this code right now. Please try again.");
+      setFeedback({ error: "Unable to continue right now. Please try again." });
     } finally {
       setBusy(false);
     }
@@ -59,70 +46,86 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
       className="panel auth-panel stack"
       onSubmit={(event) => {
         event.preventDefault();
-        void (verifiedPhone ? verify() : send());
+        void submit();
       }}
     >
-      <Phone size={28} style={{ color: "var(--accent)" }} />
-      <p className="eyebrow">MANAGER SIGN-IN</p>
-      <h1>{verifiedPhone ? "Enter your code." : "Your team starts here."}</h1>
+      <Mail size={28} style={{ color: "var(--accent)" }} />
+      <p className="eyebrow">MANAGER ACCOUNT</p>
+      <h1>{mode === "create" ? "Create your account." : "Welcome back."}</h1>
+      <div className="auth-mode" role="group" aria-label="Account action">
+        <button
+          type="button"
+          aria-pressed={mode === "sign-in"}
+          onClick={() => {
+            setMode("sign-in");
+            setFeedback({});
+          }}
+        >
+          Sign in
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === "create"}
+          onClick={() => {
+            setMode("create");
+            setFeedback({});
+          }}
+        >
+          Create account
+        </button>
+      </div>
       {!configured && <Notice>Manager sign-in is being set up.</Notice>}
-      {verifiedPhone ? (
-        <>
-          <p className="small muted">Code sent to {verifiedPhone}</p>
-          <label className="field">
-            <span>Six-digit code</span>
-            <Input
-              type="text"
-              value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              required
-              autoFocus
-            />
-          </label>
-          <div className="button-row">
-            <button
-              type="button"
-              className="text-link"
-              onClick={() => {
-                setVerifiedPhone("");
-                setCode("");
-                setError("");
-              }}
-            >
-              Change number
-            </button>
-            <button
-              type="button"
-              className="text-link"
-              disabled={busy || cooldown > 0}
-              onClick={() => void send()}
-            >
-              {cooldown ? `Resend in ${cooldown}s` : "Resend code"}
-            </button>
-          </div>
-        </>
-      ) : (
+      {params.get("message") === "link-expired" && (
+        <Notice tone="error">That email link could not be used. Request a new one.</Notice>
+      )}
+      <label className="field">
+        <span>Email address</span>
+        <Input
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          autoComplete="email"
+          maxLength={254}
+          required
+        />
+      </label>
+      <label className="field">
+        <span>Password</span>
+        <Input
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete={mode === "create" ? "new-password" : "current-password"}
+          minLength={8}
+          maxLength={256}
+          required
+        />
+      </label>
+      {mode === "create" && (
         <label className="field">
-          <span>Phone number</span>
+          <span>Confirm password</span>
           <Input
-            type="tel"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            placeholder="0803 123 4567"
-            autoComplete="tel"
-            maxLength={24}
+            type="password"
+            value={confirmation}
+            onChange={(event) => setConfirmation(event.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={256}
             required
           />
         </label>
       )}
-      {error && <Notice tone="error">{error}</Notice>}
+      {feedback.error && <Notice tone="error">{feedback.error}</Notice>}
+      {feedback.message && <Notice tone="success">{feedback.message}</Notice>}
       <Button type="submit" size="lg" disabled={busy || !configured}>
-        {busy ? "Please wait..." : verifiedPhone ? "Sign in" : "Send code"}
+        {busy ? "Please wait..." : mode === "create" ? "Create account" : "Sign in"}{" "}
         <ArrowRight size={18} />
       </Button>
+      {mode === "sign-in" && (
+        <Link className="text-link" href="/manager/forgot-password">
+          Forgot password?
+        </Link>
+      )}
     </form>
   );
 }

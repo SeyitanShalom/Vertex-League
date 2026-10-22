@@ -42,7 +42,7 @@ export function ClaimTeamForm() {
       <p className="eyebrow">EXISTING TEAM</p>
       <h1>Connect your registration.</h1>
       <p className="small muted">
-        Your signed-in phone matches an existing registration. Use its old link once to connect it
+        Your verified email matches an existing registration. Use its old link once to connect it
         to your account.
       </p>
       <label className="field">

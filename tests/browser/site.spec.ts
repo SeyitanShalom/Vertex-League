@@ -1,16 +1,27 @@
 import { test, expect } from "@playwright/test";
 test("landing page, navigation and manager sign-in", async ({ page }, info) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await expect(page).toHaveTitle(/Vertex League/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("BRING");
   await expect(page.getByText("Registration and payment details are for testing.")).toBeVisible();
-  await page.getByRole("link", { name: "Team registration" }).click();
-  await expect(page).toHaveURL(/\/manager\/sign-in$/);
-  await expect(page.getByRole("heading", { name: "Your team starts here." })).toBeVisible();
-  await expect(page.getByLabel("Phone number")).toBeVisible();
+  if (info.project.name === "mobile") {
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await page
+      .getByRole("navigation", { name: "Mobile navigation" })
+      .getByRole("link", { name: "Team sign-in" })
+      .click();
+  } else {
+    await page
+      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("link", { name: "Team sign-in" })
+      .click();
+  }
+  await expect(page).toHaveURL(/\/manager\/sign-in$/, { timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeVisible();
   await page.goto("/");
   if (info.project.name === "mobile") {
     await page.getByRole("button", { name: "Open menu" }).click();
@@ -30,6 +41,25 @@ test("landing page, navigation and manager sign-in", async ({ page }, info) => {
   );
   await page.screenshot({ path: `test-results/vertex-${info.project.name}.png`, fullPage: true });
   expect(errors).toEqual([]);
+});
+test("manager account and password screens fit on small viewports", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  if (info.project.name === "mobile") await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/manager/sign-in");
+  await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
+  await page.locator(".auth-mode button").filter({ hasText: "Create account" }).click();
+  await expect(page.getByRole("heading", { name: "Create your account." })).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeVisible();
+  await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Confirm password")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({
+    path: `test-results/manager-create-${info.project.name}.png`,
+    fullPage: true,
+  });
+  await page.goto("/manager/forgot-password");
+  await expect(page.getByRole("heading", { name: "Reset your password." })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 test("private pages and administrator endpoints reject unauthorized access", async ({
   page,

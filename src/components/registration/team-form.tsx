@@ -54,7 +54,7 @@ const fields: {
   { name: "whatsapp_number", label: "WhatsApp number", placeholder: "0803 123 4567", type: "tel" },
   {
     name: "email",
-    label: "Email address (optional)",
+    label: "Account email",
     placeholder: "you@example.com",
     autoComplete: "email",
     type: "email",
@@ -63,12 +63,12 @@ const fields: {
 export function TeamForm({
   disabledReason,
   existing,
-  verifiedPhone,
+  verifiedEmail,
   draft,
 }: {
   disabledReason?: string | null;
   existing?: { reference: string; team: Team };
-  verifiedPhone?: string;
+  verifiedEmail?: string;
   draft?: RegistrationDraft;
 }) {
   const router = useRouter();
@@ -88,10 +88,9 @@ export function TeamForm({
       team_name: existing?.team.team_name ?? draft?.team_name ?? "",
       location: existing?.team.location ?? draft?.location ?? "",
       manager_name: existing?.team.manager_name ?? draft?.manager_name ?? "",
-      phone: verifiedPhone ?? existing?.team.phone ?? "",
-      whatsapp_number:
-        existing?.team.whatsapp_number ?? draft?.whatsapp_number ?? verifiedPhone ?? "",
-      email: existing?.team.email ?? draft?.email ?? "",
+      phone: existing?.team.phone ?? draft?.phone ?? "",
+      whatsapp_number: existing?.team.whatsapp_number ?? draft?.whatsapp_number ?? "",
+      email: verifiedEmail ?? existing?.team.email ?? draft?.email ?? "",
       additional_information:
         existing?.team.additional_information ?? draft?.additional_information ?? "",
       accepted_rules: existing ? true : undefined,
@@ -127,7 +126,7 @@ export function TeamForm({
     }
   }
   async function saveDraft() {
-    if (savingDraft || !verifiedPhone || existing) return;
+    if (savingDraft || !verifiedEmail || existing) return;
     setSavingDraft(true);
     setFeedback({});
     const values = form.getValues();
@@ -137,8 +136,9 @@ export function TeamForm({
           team_name: values.team_name ?? "",
           location: values.location ?? "",
           manager_name: values.manager_name ?? "",
+          phone: values.phone ?? "",
           whatsapp_number: values.whatsapp_number ?? "",
-          email: values.email ?? "",
+          email: verifiedEmail,
           additional_information: values.additional_information ?? "",
         }),
       );
@@ -172,7 +172,7 @@ export function TeamForm({
             )}
             <label htmlFor={field.name}>
               {field.label}
-              {field.name !== "email" && " *"}
+              {(field.name !== "email" || !!verifiedEmail) && " *"}
             </label>
             <Input
               id={field.name}
@@ -180,7 +180,7 @@ export function TeamForm({
               placeholder={field.placeholder}
               autoComplete={field.autoComplete}
               maxLength={field.name === "email" ? 254 : field.type === "tel" ? 24 : 120}
-              readOnly={field.name === "phone" && !!verifiedPhone}
+              readOnly={field.name === "email" && !!verifiedEmail}
               aria-invalid={!!form.formState.errors[field.name]}
               aria-describedby={
                 form.formState.errors[field.name] ? `${field.name}-error` : undefined
@@ -257,7 +257,7 @@ export function TeamForm({
               : "Save & continue to payment"}
           <ArrowUpRight size={18} />
         </Button>
-        {!existing && verifiedPhone && (
+        {!existing && verifiedEmail && (
           <Button
             type="button"
             variant="outline"

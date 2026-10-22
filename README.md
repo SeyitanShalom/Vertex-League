@@ -1,6 +1,6 @@
 # Vertex League
 
-A Next.js football competition website with manager phone sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. Initial configuration: **test mode, NGN 100 per team**. Live mode defaults to NGN 34,000 and stays closed until a deadline is configured.
+A Next.js football competition website with manager email sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. Initial configuration: **test mode, NGN 100 per team**. Live mode defaults to NGN 34,000 and stays closed until a deadline is configured.
 
 ## Run locally
 
@@ -19,7 +19,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 ## Connect Supabase for testing
 
 1. Create a dedicated Supabase **test** project. Use a separate project and deployment for live data.
-2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The current hosted test project has all five migrations through `20261022125234_manager_accounts.sql` applied as of 22 October 2026. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private storage compatibility for previously stored logos. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
+2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The hosted test project previously had five migrations through `20261022125234_manager_accounts.sql`; `20261022150000_manager_email_auth.sql` is a new migration and has **not been confirmed applied**. Apply it before testing the new manager flow. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
 3. Set the project URL, publishable key and server secret key in `.env.local`. A legacy service-role key can be used as `SUPABASE_SECRET_KEY`; it must remain server-only.
 4. Generate a token secret and copy the result into `STATUS_TOKEN_SECRET`:
 
@@ -29,13 +29,13 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 
 5. Keep `COMPETITION_MODE=test`. Add the test bank name, beneficiary name, ten-digit Nigerian account number and organizer WhatsApp number in full international format (`234...`). Blank payment/contact values close registration safely. A real test transfer requires a valid account and involves real money; invented account details only test presentation.
 6. Set `SITE_URL=http://localhost:3000` locally, or the exact HTTPS origin of the deployed test site. Restart after environment changes.
-7. In Supabase Auth, allow new users to sign up, enable phone sign-in, and configure an SMS provider. Set Auth OTP/rate limits. CAPTCHA challenge/token handling is **not wired yet**, so do not enable enforced CAPTCHA in Supabase until that is implemented and tested before public launch. The website sends codes through Supabase Auth; no SMS provider credentials belong in this app's `.env.local`. Add an email/password administrator through Authentication → Users with confirmed email and a strong password. Authorize its UUID in SQL:
+7. In Supabase Authentication, enable email/password sign-up and **confirm email**. Set the site URL to `SITE_URL` and add both exact redirect URLs, `SITE_URL/auth/callback?next=/team` and `SITE_URL/auth/callback?next=/manager/reset-password`, under URL Configuration. In Resend, create an account, verify a sending domain, and create an API key. In Supabase Authentication's custom SMTP settings, set host `smtp.resend.com`, port `465` (SSL/TLS) or `587` (STARTTLS), username `resend`, password to the Resend API key, and sender email on the verified domain. Keep that key in Supabase, never in `.env.local` or source control. Leave the default Auth email templates in place or ensure custom templates honor the redirect URL. Set sensible email rate limits; CAPTCHA challenge/token handling is **not wired yet**, so do not enable enforced CAPTCHA until the app handles it. Add an email/password administrator through Authentication → Users with confirmed email and a strong password. Authorize its UUID in SQL:
 
    ```sql
    insert into public.admin_members(user_id) values ('YOUR_ADMIN_USER_UUID');
    ```
 
-8. Visit `/manager/sign-in` and verify real SMS delivery with a test phone before opening registration. Visit `/admin/login`; first admin login requires enrolling an authenticator app, and subsequent logins require its six-digit code. The server and database both enforce the admin allowlist and MFA. If an authenticator is lost, a trusted Supabase project administrator must recover/reset its factor before re-enrollment; there is no public MFA bypass.
+8. Visit `/manager/sign-in`, create a test account, confirm it through the real email, sign in, save a draft, and test `/manager/forgot-password` before opening registration. Open the confirmation link in the same browser where sign-up began; once confirmed, the same email/password can sign in on any device. Visit `/admin/login`; first admin login requires enrolling an authenticator app, and subsequent logins require its six-digit code. The server and database both enforce the admin allowlist and MFA.
 9. Review Supabase Security Advisor. Do not add broad public policies or public storage access to work around configuration errors.
 
 ## Configuration
@@ -79,7 +79,7 @@ Motion powers the hero entrances, scroll reveals, staggered cards, and mobile me
 
 ## Registration and administration
 
-1. A manager verifies a phone code at `/manager/sign-in`, then completes `/register`. The verified phone is prefilled and cannot be edited in the form. **Save progress for later** stores an unfinished draft against the account; it does not reserve a place. Submission atomically links one team to the manager account and saves the fee snapshot, pending payment and reference. Idempotent retries avoid duplicate records.
+1. A manager creates an email/password account, confirms their email, then signs in at `/manager/sign-in` to complete `/register`. The verified email is prefilled and cannot be edited in the form; the contact phone is entered separately. **Save progress for later** stores an unfinished draft against the account; it does not reserve a place. Submission atomically links one team to the manager account and saves the fee snapshot, pending payment and reference. Idempotent retries avoid duplicate records.
 2. `/payment/[reference]` displays the stored fee and configured bank account to the signed-in manager. The manager transfers the fee, opens WhatsApp, attaches the receipt and presses Send. The website does not read WhatsApp messages or automatically attach/send files.
 3. The organizer checks the actual bank account and clicks **Payment received** in `/admin`. The team's place is provisionally booked; it is not yet approved.
 4. After the deadline the team/players attend physical screening. The admin attests that screening passed and clicks **Approve team** to complete entry. Player details are collected physically.
@@ -87,15 +87,18 @@ Motion powers the hero entrances, scroll reveals, staggered cards, and mobile me
 
 Payment rejection permits proof resubmission in the same WhatsApp chat/reference. Managers can edit submitted details before the deadline; an admin can explicitly **Request corrections** for paid teams. Correction instructions are shown to that manager; internal notes and other reasons remain private. Approved/rejected manager records are locked.
 
-Existing registrations created before manager accounts can be linked once at `/manager/claim` using the original private link and a code sent to the registration's primary phone. After a successful claim, the old link no longer opens the team. Legacy registrations remain accessible by link until claimed. Account recovery after loss of the phone number is not yet automated; the organizer must verify identity before a future recovery/number-change workflow is implemented.
+Existing registrations created before manager accounts can be linked once at `/manager/claim` using the original private link **and a confirmed account with the same registration email**. After a successful claim, the old link no longer opens the team. Legacy registrations remain accessible by link until claimed. Registrations with no email or a different email require organizer-assisted recovery; they cannot be claimed automatically from the link alone.
+
+Existing **phone-only Auth accounts** also need an explicit transition: their registrations remain bound to the original Auth UUID, but the email form cannot sign them in. Keep the same Auth user if preserving a test team's ownership, then add and confirm its email and set a password through an administrator-controlled process. Creating a new email account does not transfer the old team automatically. Do not delete or reassign these records without checking ownership first.
 
 ## Pages, files and data
 
 - `/`: landing page, registration information, rules, full-refund policy and FAQs.
-- `/manager/sign-in`: manager phone-code sign-in.
+- `/manager/sign-in`: manager email/password sign-in and account creation.
+- `/manager/forgot-password`, `/manager/reset-password`: password recovery.
 - `/manager/claim`: one-time linking of an older registration to a verified account.
 - `/team`: routes the manager to their draft, legacy claim or registered team's status.
-- `/register`: signed-in Phase 1 team/manager form with optional email and cross-device draft saving.
+- `/register`: signed-in Phase 1 team/manager form with verified account email and cross-device draft saving.
 - `/payment/[reference]`: Phase 2 protected bank instructions, account-number copying and WhatsApp handoff for payment receipts and team logos.
 - `/registration/[reference]`: account-protected status, corrections, WhatsApp team-logo handoff and refund progress.
 - `/access`: legacy private-link exchange for registrations not yet claimed.
@@ -136,7 +139,7 @@ After testing, create a separate live Supabase project, apply the migrations and
 ## Troubleshooting
 
 - **Setup state:** check environment variables, token-secret length, all migrations, bank details and WhatsApp format. `/api/health` intentionally returns 503 during setup.
-- **Manager sign-in fails:** confirm the new migration, Auth public signups, phone provider, SMS delivery and Auth rate limits. Admin sign-in still requires a confirmed user, `admin_members` UUID and authenticator enrollment; there is no public admin authorization.
+- **Manager sign-in fails:** confirm the email migration, Auth email/password signups, email confirmation, Resend domain/SMTP settings, `SITE_URL`, redirect allow list and Auth rate limits. Admin sign-in still requires a confirmed user, `admin_members` UUID and authenticator enrollment; there is no public admin authorization.
 - **RPC/relationship errors:** apply all migrations in order. Refresh PostgREST's schema cache if needed with `notify pgrst, 'reload schema';` in the SQL editor.
 - **Duplicate team:** sign in to the existing account or link a legacy registration; do not create another team under a reused number.
 - **Approval blocked:** confirm payment and physical screening, and ensure the registration deadline has passed in live mode.

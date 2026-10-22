@@ -36,7 +36,7 @@ export async function registerTeam(
   if (!parsed.success || !z.uuid().safeParse(submissionKey).success)
     return { error: "Check the highlighted fields and try again." };
   const identity = await managerIdentity();
-  if (!identity) return { error: "Sign in with your phone before registering a team." };
+  if (!identity) return { error: "Sign in with your email before registering a team." };
   try {
     await rateLimit("register", 20);
     const settings = await getSettings();
@@ -45,7 +45,7 @@ export async function registerTeam(
     const { accepted_rules: _accepted, website: _website, ...fields } = parsed.data;
     void _accepted;
     void _website;
-    fields.phone = identity.phone;
+    fields.email = identity.email;
     const payloadHash = hash(JSON.stringify(fields));
     const token = tokenForSubmission(submissionKey, payloadHash);
     const { data, error } = await serviceClient().rpc("create_manager_registration", {
@@ -88,7 +88,7 @@ export async function saveManagerDraft(raw: unknown) {
   const { error } = await serviceClient().rpc("save_manager_draft", {
     p_mode: deploymentMode(),
     p_user_id: identity.user.id,
-    p_data: parsed.data,
+    p_data: { ...parsed.data, email: identity.email },
   });
   return error
     ? { error: "Unable to save your progress right now." }
@@ -97,7 +97,7 @@ export async function saveManagerDraft(raw: unknown) {
 
 export async function claimManagerRegistration(reference: string, token: string) {
   const identity = await managerIdentity();
-  if (!identity) return { error: "Sign in with your phone first." };
+  if (!identity) return { error: "Sign in with your email first." };
   if (await managerRegistrationReference(identity.user.id))
     return { error: "Your account already has a team." };
   if (!referenceSchema.safeParse(reference).success || !accessTokenSchema.safeParse(token).success)
@@ -105,8 +105,12 @@ export async function claimManagerRegistration(reference: string, token: string)
   try {
     await rateLimit(`claim:${identity.user.id}`, 10, 900);
     const row = await ownerRegistration(reference, token);
-    if (!row || row.accessMode !== "legacy" || row.teams.phone !== identity.phone)
-      return { error: "This link and signed-in phone do not match. Contact the organizer." };
+    if (
+      !row ||
+      row.accessMode !== "legacy" ||
+      row.teams.email?.trim().toLowerCase() !== identity.email
+    )
+      return { error: "This link and verified email do not match. Contact the organizer." };
     const { error } = await serviceClient().rpc("claim_manager_registration", {
       p_id: row.id,
       p_token_hash: hash(token),
@@ -158,7 +162,7 @@ export async function correctTeam(reference: string, raw: unknown) {
         ? await serviceClient().rpc("correct_manager_registration", {
             p_id: row.id,
             p_manager_user_id: identity!.user.id,
-            p_data: { ...parsed.data, phone: identity!.phone },
+            p_data: { ...parsed.data, email: identity!.email },
           })
         : await serviceClient().rpc("correct_team_registration", {
             p_id: row.id,

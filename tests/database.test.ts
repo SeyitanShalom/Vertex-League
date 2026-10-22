@@ -19,6 +19,7 @@ const team = {
   location: "Ikeja",
   additional_information: null,
 };
+const managerTeam = { ...team, email: "ada@example.com" };
 type Saved = { id: string; reference: string; team_id: string };
 async function register(
   data: Record<string, unknown> = team,
@@ -32,7 +33,7 @@ async function register(
   return result.rows[0].result;
 }
 async function registerManager(
-  data: Record<string, unknown> = team,
+  data: Record<string, unknown> = managerTeam,
   key = randomUUID(),
   userId = manager,
 ) {
@@ -65,15 +66,15 @@ beforeAll(async () => {
   db = new PGlite();
   await db.waitReady;
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
-    create schema auth; create table auth.users(id uuid primary key,phone text,phone_confirmed_at timestamptz);
+    create schema auth; create table auth.users(id uuid primary key,phone text,phone_confirmed_at timestamptz,email text,email_confirmed_at timestamptz);
     create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
     create function auth.uid() returns uuid language sql stable as $$select (auth.jwt()->>'sub')::uuid$$;
     create schema storage; create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
     insert into auth.users(id) values('${admin}'),('${outsider}');
-    insert into auth.users(id,phone,phone_confirmed_at) values
-      ('${manager}','+2348031234567',now()),
-      ('${unverifiedManager}','+2348031234567',null),
-      ('${otherManager}','+2348031234568',now());
+    insert into auth.users(id,phone,phone_confirmed_at,email,email_confirmed_at) values
+      ('${manager}','+2348031234567',now(),'ada@example.com',now()),
+      ('${unverifiedManager}','+2348031234567',null,'ada@example.com',null),
+      ('${otherManager}','+2348031234568',now(),'other@example.com',now());
     grant usage on schema public,auth to anon,authenticated,service_role;`);
   const migrationDirectory = new URL("../supabase/migrations/", import.meta.url);
   const migrations = (await readdir(migrationDirectory))
@@ -205,7 +206,7 @@ describe("real PostgreSQL registration rules", () => {
 });
 describe("manager account ownership", () => {
   it("stores a cross-device draft and clears it on submission", async () => {
-    const draft = { team_name: "Eagles FC", manager_name: "Ada Okafor" };
+    const draft = { team_name: "Eagles FC", manager_name: "Ada Okafor", phone: team.phone };
     await db.query("select public.save_manager_draft($1,$2,$3::jsonb)", [
       "test",
       manager,
@@ -235,8 +236,8 @@ describe("manager account ownership", () => {
   });
   it("atomically links a verified manager and returns the same registration on retry", async () => {
     const key = randomUUID();
-    const first = await registerManager(team, key);
-    const second = await registerManager(team, key);
+    const first = await registerManager(managerTeam, key);
+    const second = await registerManager(managerTeam, key);
     expect(first.id).toBe(second.id);
     const result = await db.query<{ manager_user_id: string }>(
       "select manager_user_id from public.registrations where id=$1",
@@ -246,22 +247,34 @@ describe("manager account ownership", () => {
   });
   it("rejects a second team for the same manager", async () => {
     await registerManager();
-    await expect(registerManager({ ...team, team_name: "Lions FC" })).rejects.toThrow(
+    await expect(registerManager({ ...managerTeam, team_name: "Lions FC" })).rejects.toThrow(
       "already_registered",
     );
   });
-  it("requires a confirmed phone", async () => {
-    await expect(registerManager(team, randomUUID(), unverifiedManager)).rejects.toThrow(
+  it("requires a confirmed email", async () => {
+    await expect(registerManager(managerTeam, randomUUID(), unverifiedManager)).rejects.toThrow(
       "access_denied",
     );
   });
-  it("requires the signed-in phone to match the team", async () => {
-    await expect(registerManager({ ...team, phone: "+2348031234568" })).rejects.toThrow(
+  it("requires the verified email to match the team", async () => {
+    await expect(registerManager({ ...managerTeam, email: "other@example.com" })).rejects.toThrow(
       "access_denied",
     );
+  });
+  it("rejects a manager after their confirmed email changes without updating submitted data", async () => {
+    await db.query("update auth.users set email='new@example.com' where id=$1", [manager]);
+    await expect(registerManager(managerTeam)).rejects.toThrow("access_denied");
+  });
+  it("allows a manager to use a different contact phone", async () => {
+    const saved = await registerManager({
+      ...managerTeam,
+      phone: "+2348031234599",
+      whatsapp_number: "+2348031234599",
+    });
+    expect(saved.id).toBeTruthy();
   });
   it("rejects a legacy claim with the wrong token", async () => {
-    const saved = await register();
+    const saved = await register(managerTeam);
     await expect(
       db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
         saved.id,
@@ -271,8 +284,8 @@ describe("manager account ownership", () => {
       ]),
     ).rejects.toThrow("access_denied");
   });
-  it("rejects a legacy claim without a verified phone", async () => {
-    const saved = await register();
+  it("rejects a legacy claim without a verified email", async () => {
+    const saved = await register(managerTeam);
     await expect(
       db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
         saved.id,
@@ -282,8 +295,8 @@ describe("manager account ownership", () => {
       ]),
     ).rejects.toThrow("access_denied");
   });
-  it("rejects a legacy claim from a different verified phone", async () => {
-    const saved = await register();
+  it("rejects a legacy claim from a different verified email", async () => {
+    const saved = await register(managerTeam);
     await expect(
       db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
         saved.id,
@@ -293,8 +306,19 @@ describe("manager account ownership", () => {
       ]),
     ).rejects.toThrow("access_denied");
   });
-  it("claims a legacy registration only once", async () => {
+  it("does not auto-claim a legacy registration without an email", async () => {
     const saved = await register();
+    await expect(
+      db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
+        saved.id,
+        tokenHash,
+        manager,
+        "d".repeat(64),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("claims a legacy registration only once", async () => {
+    const saved = await register(managerTeam);
     await db.query("select public.claim_manager_registration($1,$2,$3,$4)", [
       saved.id,
       tokenHash,
@@ -321,13 +345,23 @@ describe("manager account ownership", () => {
     await db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
       saved.id,
       manager,
-      JSON.stringify({ ...team, location: "Surulere" }),
+      JSON.stringify({ ...managerTeam, location: "Surulere" }),
     ]);
     const result = await db.query<{ location: string }>(
       "select location from public.teams where id=$1",
       [saved.team_id],
     );
     expect(result.rows[0].location).toBe("Surulere");
+    await expect(
+      db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
+        saved.id,
+        manager,
+        JSON.stringify({ ...managerTeam, email: "other@example.com" }),
+      ]),
+    ).rejects.toThrow("access_denied");
+  });
+  it("rejects corrections from a different account", async () => {
+    const saved = await registerManager();
     await expect(
       db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
         saved.id,

@@ -16,24 +16,19 @@ export async function managerRegistrationReference(userId: string) {
     .eq("mode", deploymentMode())
     .eq("manager_user_id", userId)
     .maybeSingle();
-  return error ? null : data?.registration_reference ?? null;
+  return error ? null : (data?.registration_reference ?? null);
 }
-export async function legacyRegistrationForPhone(phone: string) {
+export async function legacyRegistrationForEmail(email: string) {
   if (!hasDatabase()) return false;
-  const { data: team, error } = await serviceClient()
-    .from("teams")
-    .select("id")
-    .eq("mode", deploymentMode())
-    .eq("phone", phone)
-    .maybeSingle();
-  if (error || !team) return false;
-  const { data: registration } = await serviceClient()
+  const { data, error } = await serviceClient()
     .from("registrations")
-    .select("id")
-    .eq("team_id", team.id)
+    .select("id,teams!inner(email)")
+    .eq("mode", deploymentMode())
     .is("manager_user_id", null)
+    .ilike("teams.email", email.replaceAll("%", "\\%").replaceAll("_", "\\_"))
+    .limit(1)
     .maybeSingle();
-  return !!registration;
+  return !error && !!data;
 }
 export async function ownerRegistration(
   reference: string,
@@ -52,7 +47,11 @@ export async function ownerRegistration(
     if (!identity || identity.user.id !== data.manager_user_id) return null;
   } else {
     const token = suppliedToken ?? (await readAccess(reference));
-    if (!token || !accessTokenSchema.safeParse(token).success || !matchesHash(token, data.status_token_hash))
+    if (
+      !token ||
+      !accessTokenSchema.safeParse(token).success ||
+      !matchesHash(token, data.status_token_hash)
+    )
       return null;
   }
   // Supabase nested-relation inference needs generated DB types; keep the cast at this boundary.

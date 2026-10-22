@@ -12,7 +12,7 @@ const steps = [
   {
     number: "01",
     title: "Put your team forward.",
-    text: "Sign in with your phone, then save your team and manager details to open the payment phase. Return to your team page at any time.",
+    text: "Create an account with your email, then save your team and manager details to open the payment phase. Return to your team page at any time.",
   },
   {
     number: "02",

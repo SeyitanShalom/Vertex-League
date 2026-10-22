@@ -20,7 +20,7 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", csp);
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   if (
-    /^\/(admin|manager|team|register|payment|registration|api\/logo)(\/|$)/.test(request.nextUrl.pathname) &&
+    /^\/(admin|auth|manager|team|register|payment|registration|api\/logo)(\/|$)/.test(request.nextUrl.pathname) &&
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ) {
@@ -50,7 +50,7 @@ export async function proxy(request: NextRequest) {
     await client.auth.getClaims().catch(() => null);
   }
   response.headers.set("Content-Security-Policy", csp);
-  if (/^\/(admin|manager|team|register|payment|registration|access|api)(\/|$)/.test(request.nextUrl.pathname)) {
+  if (/^\/(admin|auth|manager|team|register|payment|registration|access|api)(\/|$)/.test(request.nextUrl.pathname)) {
     response.headers.set("Cache-Control", "private, no-store, max-age=0");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }

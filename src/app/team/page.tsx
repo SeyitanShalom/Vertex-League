@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { managerIdentity } from "@/lib/auth";
-import { legacyRegistrationForPhone, managerRegistrationReference } from "@/lib/registration/data";
+import { legacyRegistrationForEmail, managerRegistrationReference } from "@/lib/registration/data";
 
 export const metadata: Metadata = {
   title: "Your team",
@@ -12,6 +12,6 @@ export default async function TeamPage() {
   if (!identity) redirect("/manager/sign-in");
   const reference = await managerRegistrationReference(identity.user.id);
   if (reference) redirect(`/registration/${reference}`);
-  if (await legacyRegistrationForPhone(identity.phone)) redirect("/manager/claim");
+  if (await legacyRegistrationForEmail(identity.email)) redirect("/manager/claim");
   redirect("/register");
 }

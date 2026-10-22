@@ -43,7 +43,7 @@ export function AccessRequired() {
         <ShieldCheck size={40} />
         <p className="eyebrow">MANAGER ACCESS</p>
         <h1>Sign in to view your team.</h1>
-        <p>Use the phone number linked to your registration.</p>
+        <p>Use the email account linked to your registration.</p>
         <Button asChild>
           <Link href="/manager/sign-in">
             Sign in <ArrowUpRight size={17} />

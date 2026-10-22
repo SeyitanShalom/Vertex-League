@@ -7,7 +7,7 @@ This file records the decisions from the requirements discussion. Implementation
 - White page backgrounds, navy text and key controls, with yellow accents.
 - Primary typeface: Mark Pro, paired with Anton for display headings. Supplied local font files are loaded automatically; Manrope remains available as a fallback.
 - Team and manager information is collected online; player details are collected at physical screening.
-- Managers verify a phone code before Phase 1. The verified number is prefilled; one manager account owns one team per environment. Unfinished form details can be saved as a cross-device draft without reserving a place. **Save & continue to payment** submits the team and opens Phase 2 with bank details and an account-number copy control.
+- Managers create an email/password account and confirm their email before Phase 1. The verified email is prefilled; contact phone and WhatsApp are entered separately. One manager account owns one team per environment. Unfinished form details can be saved as a cross-device draft without reserving a place. **Save & continue to payment** submits the team and opens Phase 2 with bank details and an account-number copy control.
 - Team logos/images are sent directly in the organizer's WhatsApp chat alongside payment receipts. There are no logo/image upload forms on the website.
 - One team per manager; repeated team registrations are blocked.
 - Test fee: NGN 100. Live fee: NGN 34,000. Each registration keeps its original fee snapshot.
@@ -19,7 +19,7 @@ This file records the decisions from the requirements discussion. Implementation
 - Teams can correct details and resubmit payment proof under the same reference.
 - Paid teams that fail eligibility approval receive the full fee actually paid, with no deductions.
 - Refunds are transferred manually and recorded separately after completion.
-- Older registrations can be linked once using the prior private link and verified registration phone. The link stops working after claim; unclaimed legacy registrations retain access during migration. Lost-phone account recovery requires organizer identity checks and is not automated yet.
+- Older registrations can be linked once using the prior private link and a confirmed account matching the registration email. The link stops working after claim; unclaimed legacy registrations retain access during migration. Registrations without a matching email require organizer-assisted identity checks.
 - All initial registration, bank, and contact configuration is for testing. Test entries are excluded from live mode.
 
 ## Working policies selected for the first version
@@ -33,4 +33,4 @@ This file records the decisions from the requirements discussion. Implementation
 
 ## Operator inputs still required
 
-Supabase test project credentials, enabled phone Auth signups and an SMS provider, a generated token secret for legacy compatibility, test bank details, organizer WhatsApp number, initial administrator, and any dates/venues/rules ready to publish. An actual test transfer requires a valid bank account; sample account details only test presentation.
+Supabase test project credentials, enabled email/password Auth with email confirmation, a verified Resend sending domain and Supabase custom SMTP configuration, a generated token secret for legacy compatibility, test bank details, organizer WhatsApp number, initial administrator, and any dates/venues/rules ready to publish. An actual test transfer requires a valid bank account; sample account details only test presentation.

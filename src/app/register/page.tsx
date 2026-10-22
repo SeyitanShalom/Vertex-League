@@ -6,7 +6,7 @@ import { getSettings, paymentConfigured, deploymentMode } from "@/lib/config/ser
 import { registrationAvailability } from "@/lib/registration/rules";
 import { money, dateLabel } from "@/lib/utils";
 import { managerIdentity } from "@/lib/auth";
-import { legacyRegistrationForPhone, managerRegistrationReference } from "@/lib/registration/data";
+import { legacyRegistrationForEmail, managerRegistrationReference } from "@/lib/registration/data";
 import { serviceClient } from "@/lib/supabase/service";
 import { registrationDraftSchema } from "@/lib/validations/registration";
 import { signOutManager } from "@/app/actions/manager-auth";
@@ -16,7 +16,7 @@ export default async function RegisterPage() {
   const identity = await managerIdentity();
   if (!identity) redirect("/manager/sign-in");
   if (await managerRegistrationReference(identity.user.id)) redirect("/team");
-  if (await legacyRegistrationForPhone(identity.phone)) redirect("/manager/claim");
+  if (await legacyRegistrationForEmail(identity.email)) redirect("/manager/claim");
   const { data: savedDraft } = await serviceClient().rpc("load_manager_draft", {
     p_mode: deploymentMode(),
     p_user_id: identity.user.id,
@@ -45,7 +45,7 @@ export default async function RegisterPage() {
         <section className="panel">
           <TeamForm
             disabledReason={disabledReason}
-            verifiedPhone={identity.phone}
+            verifiedEmail={identity.email}
             draft={draft.success ? draft.data : undefined}
           />
         </section>

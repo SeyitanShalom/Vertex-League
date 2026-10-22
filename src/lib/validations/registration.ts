@@ -59,6 +59,7 @@ export const registrationDraftSchema = z.object({
   team_name: z.string().max(80),
   location: z.string().max(120),
   manager_name: z.string().max(100),
+  phone: z.string().max(24).optional().default(""),
   whatsapp_number: z.string().max(24),
   email: z.string().max(254),
   additional_information: z.string().max(1000),
