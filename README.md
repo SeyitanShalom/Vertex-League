@@ -19,7 +19,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 ## Connect Supabase for testing
 
 1. Create a dedicated Supabase **test** project. Use a separate project and deployment for live data.
-2. Apply the files in `supabase/migrations/` in filename order using Supabase MCP's `apply_migration`, or initialize/link the Supabase CLI and run `supabase db push`. These methods record migration history; apply only pending migrations to an existing database. The new `202610210001_manager_accounts.sql` migration has **not** been applied to the hosted test project by this code change. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private storage compatibility for previously stored logos. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
+2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The current hosted test project has all five migrations through `20261022125234_manager_accounts.sql` applied as of 22 October 2026. Migrations create the tables, reference sequence, RLS/grants, constrained RPCs and private storage compatibility for previously stored logos. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
 3. Set the project URL, publishable key and server secret key in `.env.local`. A legacy service-role key can be used as `SUPABASE_SECRET_KEY`; it must remain server-only.
 4. Generate a token secret and copy the result into `STATUS_TOKEN_SECRET`:
 
