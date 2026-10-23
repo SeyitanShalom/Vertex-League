@@ -17,8 +17,17 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Notice } from "@/components/shared";
 import type { Team } from "@/types/domain";
 import type { RegistrationDraft } from "@/lib/validations/registration";
+import { createDraftAutosave, type DraftSaveStatus } from "@/lib/registration/draft-autosave";
 
 type Fields = keyof z.input<typeof teamFieldsSchema>;
+const draftFields = new Set<string>([
+  "team_name",
+  "location",
+  "manager_name",
+  "phone",
+  "whatsapp_number",
+  "additional_information",
+]);
 const fields: {
   name: Fields;
   label: string;
@@ -75,7 +84,13 @@ export function TeamForm({
   const submissionKey = useRef<string | null>(null);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState<{ error?: string; success?: string }>({});
-  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<DraftSaveStatus>(draft ? "saved" : "idle");
+  const [autosave] = useState(() =>
+    createDraftAutosave<RegistrationDraft>(async (value) => {
+      const result = await saveManagerDraft(value);
+      return !!result.success;
+    }, setDraftStatus),
+  );
   const schema = existing
     ? teamFieldsSchema.extend({
         accepted_rules: registrationSchema.shape.accepted_rules,
@@ -97,6 +112,21 @@ export function TeamForm({
       website: "",
     },
   });
+  function draftValues(): RegistrationDraft {
+    const values = form.getValues();
+    return {
+      team_name: values.team_name ?? "",
+      location: values.location ?? "",
+      manager_name: values.manager_name ?? "",
+      phone: values.phone ?? "",
+      whatsapp_number: values.whatsapp_number ?? "",
+      email: verifiedEmail ?? "",
+      additional_information: values.additional_information ?? "",
+    };
+  }
+  function canSaveDraft() {
+    return !!verifiedEmail && !existing;
+  }
   async function submit(values: z.output<typeof registrationSchema>) {
     if (submitting.current || disabledReason) return;
     submitting.current = true;
@@ -107,6 +137,7 @@ export function TeamForm({
         router.refresh();
         return;
       }
+      await autosave.flush(draftValues());
       submissionKey.current ??= crypto.randomUUID();
       const result = await registerTeam(values, submissionKey.current);
       if (result.error) {
@@ -114,6 +145,7 @@ export function TeamForm({
         return;
       }
       if (result.reference) {
+        autosave.stop();
         router.push(`/payment/${result.reference}`);
       }
     } catch {
@@ -125,32 +157,21 @@ export function TeamForm({
       submitting.current = false;
     }
   }
-  async function saveDraft() {
-    if (savingDraft || !verifiedEmail || existing) return;
-    setSavingDraft(true);
-    setFeedback({});
-    const values = form.getValues();
-    try {
-      setFeedback(
-        await saveManagerDraft({
-          team_name: values.team_name ?? "",
-          location: values.location ?? "",
-          manager_name: values.manager_name ?? "",
-          phone: values.phone ?? "",
-          whatsapp_number: values.whatsapp_number ?? "",
-          email: verifiedEmail,
-          additional_information: values.additional_information ?? "",
-        }),
-      );
-    } catch {
-      setFeedback({ error: "Unable to save your progress right now." });
-    } finally {
-      setSavingDraft(false);
-    }
-  }
   return (
     <form
-      onSubmit={(event) => void form.handleSubmit(submit)(event)}
+      onSubmit={(event) =>
+        void form.handleSubmit(submit, () => {
+          if (canSaveDraft() && form.formState.isDirty) void autosave.flush(draftValues());
+        })(event)
+      }
+      onChange={(event) => {
+        if (canSaveDraft() && draftFields.has(event.target.getAttribute("name") ?? ""))
+          autosave.schedule(draftValues());
+      }}
+      onBlurCapture={(event) => {
+        if (canSaveDraft() && draftFields.has(event.target.getAttribute("name") ?? ""))
+          void autosave.flush(draftValues());
+      }}
       noValidate
       className="registration-form"
     >
@@ -196,11 +217,12 @@ export function TeamForm({
               <button
                 className="text-link"
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   form.setValue("whatsapp_number", form.getValues("phone"), {
                     shouldValidate: true,
-                  })
-                }
+                  });
+                  if (canSaveDraft()) void autosave.flush(draftValues());
+                }}
               >
                 Use my phone number
               </button>
@@ -257,15 +279,23 @@ export function TeamForm({
               : "Save & continue to payment"}
           <ArrowUpRight size={18} />
         </Button>
-        {!existing && verifiedEmail && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void saveDraft()}
-            disabled={savingDraft}
-          >
-            {savingDraft ? "Saving..." : "Save progress for later"}
-          </Button>
+        {!existing && verifiedEmail && draftStatus !== "idle" && (
+          <p className="draft-status" role="status" aria-live="polite">
+            {draftStatus === "saving"
+              ? "Saving progress..."
+              : draftStatus === "saved"
+                ? "Progress saved"
+                : "Progress could not be saved."}
+            {draftStatus === "error" && (
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => void autosave.flush(draftValues())}
+              >
+                Retry
+              </button>
+            )}
+          </p>
         )}
         <p className="hint">
           <LockKeyhole

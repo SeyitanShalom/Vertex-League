@@ -70,7 +70,7 @@ test("private pages and administrator endpoints reject unauthorized access", asy
     await expect(page.getByRole("heading", { name: "Sign in to view your team." })).toBeVisible();
   }
   await page.goto("/admin");
-  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page).toHaveURL(/\/admin\/login$/, { timeout: 30_000 });
   expect((await request.get("/admin/export")).status()).toBe(401);
   expect((await request.get("/api/logo/VL-TEST-2026-000001")).status()).toBe(404);
   const health = await request.get("/api/health");

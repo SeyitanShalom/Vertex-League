@@ -79,7 +79,7 @@ export async function saveManagerDraft(raw: unknown) {
   const identity = await managerIdentity();
   if (!identity) return { error: "Sign in again to save your progress." };
   try {
-    await rateLimit(`manager-draft:${identity.user.id}`, 30, 3600);
+    await rateLimit(`manager-draft:${identity.user.id}`, 120, 3600);
   } catch {
     return { error: "Please wait a while before saving again." };
   }
