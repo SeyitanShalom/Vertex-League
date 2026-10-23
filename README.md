@@ -19,7 +19,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 ## Connect Supabase for testing
 
 1. Create a dedicated Supabase **test** project. Use a separate project and deployment for live data.
-2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The hosted test project has six migrations through `20261023150613_manager_email_auth.sql`. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
+2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The hosted test project has seven migrations through `20261023154633_delete_test_registrations.sql`. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
 3. Set the project URL, publishable key and server secret key in `.env.local`. A legacy service-role key can be used as `SUPABASE_SECRET_KEY`; it must remain server-only.
 4. Generate a token secret and copy the result into `STATUS_TOKEN_SECRET`:
 
@@ -86,6 +86,8 @@ Motion powers the hero entrances, scroll reveals, staggered cards, and mobile me
 5. A rejected paid team becomes eligible for a full refund. After returning the full fee manually, the organizer records **Record full refund**, the transfer reference and completion time. This action records a transfer; it does not send money.
 
 Payment rejection permits proof resubmission in the same WhatsApp chat/reference. Managers can edit submitted details before the deadline; an admin can explicitly **Request corrections** for paid teams. Correction instructions are shown to that manager; internal notes and other reasons remain private. Approved/rejected manager records are locked.
+
+In test mode, an MFA-verified organizer can delete an untouched registration from its dashboard row or detail page after checking that no bank payment arrived and typing its reference. This permanently removes the team, contact numbers, pending payment entry and submission history, leaving an organizer deletion event. Reviewed, paid, refunded or badge-bearing entries cannot be deleted, and the control is unavailable in live mode.
 
 Existing registrations created before manager accounts can be linked once at `/manager/claim` using the original private link **and a confirmed account with the same registration email**. After a successful claim, the old link no longer opens the team. Legacy registrations remain accessible by link until claimed. Registrations with no email or a different email require organizer-assisted recovery; they cannot be claimed automatically from the link alone.
 

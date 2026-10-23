@@ -9,6 +9,10 @@ export function ConfirmDialog({
   children,
   onConfirm,
   busy,
+  description = "This change will be recorded in the registration history.",
+  confirmLabel = "Confirm action",
+  confirmDisabled = false,
+  destructive = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -16,6 +20,10 @@ export function ConfirmDialog({
   children: ReactNode;
   onConfirm: () => void;
   busy: boolean;
+  description?: string;
+  confirmLabel?: string;
+  confirmDisabled?: boolean;
+  destructive?: boolean;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -23,9 +31,7 @@ export function ConfirmDialog({
         <Dialog.Overlay className="dialog-overlay" />
         <Dialog.Content className="dialog-content">
           <Dialog.Title className="h3">{title}</Dialog.Title>
-          <Dialog.Description className="muted">
-            This change will be recorded in the registration history.
-          </Dialog.Description>
+          <Dialog.Description className="muted">{description}</Dialog.Description>
           <div className="stack">{children}</div>
           <div className="button-row">
             <Dialog.Cancel asChild>
@@ -33,8 +39,12 @@ export function ConfirmDialog({
                 Cancel
               </Button>
             </Dialog.Cancel>
-            <Button disabled={busy} onClick={onConfirm}>
-              {busy ? "Saving…" : "Confirm action"}
+            <Button
+              variant={destructive ? "destructive" : "default"}
+              disabled={busy || confirmDisabled}
+              onClick={onConfirm}
+            >
+              {busy ? "Saving…" : confirmLabel}
             </Button>
           </div>
         </Dialog.Content>

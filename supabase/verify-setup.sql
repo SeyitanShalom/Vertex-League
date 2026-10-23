@@ -29,7 +29,7 @@ select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;
 
--- Expected: 6 rows, all true.
+-- Expected: 7 rows, all true.
 select
   'vertex_league' as migration,
   to_regprocedure('public.create_team_registration(text,jsonb,uuid,text,text)') is not null as applied
@@ -73,4 +73,12 @@ select
        'claim_manager_registration', 'correct_manager_registration'
      )
      and pg_catalog.pg_get_functiondef(functions.oid) like '%email_confirmed_at%'
-     and pg_catalog.pg_get_functiondef(functions.oid) not like '%phone_confirmed_at%');
+     and pg_catalog.pg_get_functiondef(functions.oid) not like '%phone_confirmed_at%')
+union all
+select
+  'delete_test_registrations',
+  to_regprocedure('public.delete_test_registration(uuid,text)') is not null
+  and not has_function_privilege('anon',
+    'public.delete_test_registration(uuid,text)', 'execute')
+  and has_function_privilege('authenticated',
+    'public.delete_test_registration(uuid,text)', 'execute');

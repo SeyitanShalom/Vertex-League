@@ -1,7 +1,8 @@
 "use server";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
-import { adminActionSchema } from "@/lib/validations/registration";
+import { adminActionSchema, referenceSchema } from "@/lib/validations/registration";
 import { safeDatabaseError } from "@/lib/registration/data";
 import { deploymentMode } from "@/lib/config/server";
 import { newAccessToken, hash, privateLink } from "@/lib/security";
@@ -39,4 +40,27 @@ export async function updateRegistration(
     success: "Registration updated.",
     ...(token ? { accessLink: privateLink(registration.registration_reference, token) } : {}),
   };
+}
+
+const deleteTestSchema = z.object({
+  id: z.uuid(),
+  reference: referenceSchema,
+  verifiedNoPayment: z.literal(true),
+});
+
+export async function deleteTestRegistration(raw: unknown) {
+  const { client } = await requireAdmin();
+  if (deploymentMode() !== "test")
+    return { error: "Only test registrations can be deleted." };
+  const parsed = deleteTestSchema.safeParse(raw);
+  if (!parsed.success)
+    return { error: "Enter the exact reference and confirm no payment was received." };
+  const { error } = await client.rpc("delete_test_registration", {
+    p_id: parsed.data.id,
+    p_reference: parsed.data.reference,
+  });
+  if (error) return { error: safeDatabaseError(error) };
+  revalidatePath("/admin");
+  revalidatePath(`/admin/registrations/${parsed.data.id}`);
+  return { success: "Test registration deleted." };
 }

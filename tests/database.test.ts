@@ -204,6 +204,77 @@ describe("real PostgreSQL registration rules", () => {
     ).rejects.toThrow("access_denied");
   });
 });
+describe("test registration deletion", () => {
+  const remove = (id: string, reference: string) =>
+    db.query("select public.delete_test_registration($1::uuid,$2)", [id, reference]);
+
+  it("rejects a non-organizer", async () => {
+    const saved = await register();
+    await authenticate(outsider);
+    await expect(remove(saved.id, saved.reference)).rejects.toThrow("access_denied");
+  });
+
+  it("requires organizer MFA", async () => {
+    const saved = await register();
+    await authenticate(admin, "aal1");
+    await expect(remove(saved.id, saved.reference)).rejects.toThrow("access_denied");
+  });
+
+  it("removes an untouched test entry and leaves an organizer audit tombstone", async () => {
+    const saved = await register();
+    await authenticate();
+    await remove(saved.id, saved.reference);
+    await db.exec("reset role;");
+    const result = await db.query<{
+      registrations: number;
+      teams: number;
+      contacts: number;
+      payments: number;
+      deletion_events: number;
+    }>(`select
+      (select count(*)::int from public.registrations) registrations,
+      (select count(*)::int from public.teams) teams,
+      (select count(*)::int from public.manager_contacts) contacts,
+      (select count(*)::int from public.payments) payments,
+      (select count(*)::int from public.admin_audit_logs
+        where action = 'test_registration_deleted' and admin_id = $1) deletion_events`, [admin]);
+    expect(result.rows[0]).toEqual({
+      registrations: 0,
+      teams: 0,
+      contacts: 0,
+      payments: 0,
+      deletion_events: 1,
+    });
+  });
+
+  it("requires the exact reference", async () => {
+    const saved = await register();
+    await authenticate();
+    await expect(remove(saved.id, "VL-TEST-WRONG")).rejects.toThrow("registration_not_found");
+  });
+
+  it("refuses entries with review history", async () => {
+    const saved = await register();
+    await authenticate();
+    await action(saved.id, "notes", "Reviewed by organizer");
+    await expect(remove(saved.id, saved.reference)).rejects.toThrow("test_deletion_not_allowed");
+  });
+
+  it("refuses entries with payment history", async () => {
+    const saved = await register();
+    await authenticate();
+    await action(saved.id, "payment_received");
+    await expect(remove(saved.id, saved.reference)).rejects.toThrow("test_deletion_not_allowed");
+  });
+
+  it("never deletes a live registration", async () => {
+    await db.exec("update public.competition_settings set registration_enabled=true, registration_deadline=now()+interval '1 day' where mode='live'");
+    const saved = await register(team, randomUUID(), "live");
+    await authenticate();
+    await expect(remove(saved.id, saved.reference)).rejects.toThrow("registration_not_found");
+  });
+});
+
 describe("manager account ownership", () => {
   it("stores a cross-device draft and clears it on submission", async () => {
     const draft = { team_name: "Eagles FC", manager_name: "Ada Okafor", phone: team.phone };

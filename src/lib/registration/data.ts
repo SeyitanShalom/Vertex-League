@@ -77,6 +77,8 @@ export async function ownerRegistration(
   };
 }
 export function safeDatabaseError(error: { code?: string; message?: string }) {
+  if (error.code === "23505" && error.message?.includes('"manager_contacts_pkey"'))
+    return "A phone or WhatsApp number is already linked to a registration. If this is your team, sign in with its registration email to claim it, or contact the organizer to verify ownership.";
   if (error.code === "23505")
     return "This team or manager already has a registration. Sign in to your existing team or contact the organizer.";
   const known: Record<string, string> = {
@@ -93,6 +95,9 @@ export function safeDatabaseError(error: { code?: string; message?: string }) {
       "This action is not available for the current status. Refresh and check the record.",
     duplicate_submission: "This submission has already been processed. Open your team page.",
     already_registered: "Your account already has a team. Open your team page.",
+    registration_not_found: "This registration is no longer available. Refresh the page.",
+    test_deletion_not_allowed:
+      "This test registration has payment, review, or badge history and cannot be deleted.",
     access_denied: "This registration could not be linked to your account. Contact the organizer.",
     reason_required: "Enter a reason for this action.",
     refund_reference_required: "Enter the completed refund’s transfer reference.",

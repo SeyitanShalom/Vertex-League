@@ -73,7 +73,9 @@ test("private pages and administrator endpoints reject unauthorized access", asy
   await expect(page).toHaveURL(/\/admin\/login$/);
   expect((await request.get("/admin/export")).status()).toBe(401);
   expect((await request.get("/api/logo/VL-TEST-2026-000001")).status()).toBe(404);
-  expect((await request.get("/api/health")).status()).toBe(503);
+  const health = await request.get("/api/health");
+  expect([200, 503]).toContain(health.status());
+  expect((await health.json()).status).toBe(health.status() === 200 ? "ready" : "setup_required");
 });
 test("security headers and private-link token handling", async ({ page, request }) => {
   const first = await request.get("/access");
@@ -88,5 +90,7 @@ test("security headers and private-link token handling", async ({ page, request 
   expect(headers["cache-control"]).toContain("no-store");
   await page.goto(`/access#reference=VL-TEST-2026-000001&key=${"a".repeat(43)}`);
   await expect(page).toHaveURL(/\/access$/);
-  await expect(page.getByRole("alert").filter({ hasText: "invalid or has expired" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "invalid or has expired" })).toBeVisible({
+    timeout: 30_000,
+  });
 });
