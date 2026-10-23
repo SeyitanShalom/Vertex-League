@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { JadeSkyBackground } from "@/components/layout/jade-sky-background";
 import { MotionProvider } from "@/components/motion/motion-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
 import { deploymentMode, siteUrl } from "@/lib/config/server";
 import "./globals.css";
 import "./brand-fonts.css";
@@ -21,16 +22,18 @@ export const metadata: Metadata = {
     deploymentMode() === "test" ? { index: false, follow: false } : { index: true, follow: true },
 };
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  await headers();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
-        <JadeSkyBackground />
-        <MotionProvider>
-          <Header testMode={deploymentMode() === "test"} />
-          <main id="main">{children}</main>
-          <Footer />
-        </MotionProvider>
+        <ThemeProvider nonce={nonce}>
+          <JadeSkyBackground />
+          <MotionProvider>
+            <Header testMode={deploymentMode() === "test"} />
+            <main id="main">{children}</main>
+            <Footer />
+          </MotionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

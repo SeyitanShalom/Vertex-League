@@ -41,6 +41,10 @@ export default async function Home() {
     <>
       <CompetitionHero
         deadline={settings?.registration_deadline ?? null}
+        deadlineLabel={
+          settings?.registration_deadline ? deadlineLabel(settings.registration_deadline) : null
+        }
+        registrationEnabled={settings?.registration_enabled ?? false}
         unavailable={unavailable}
       />
       <div className="facts-strip">
@@ -211,12 +215,6 @@ export default async function Home() {
             </p>
             <RegistrationEntryAction
               deadline={settings?.registration_deadline ?? null}
-              deadlineLabel={
-                settings?.registration_deadline
-                  ? deadlineLabel(settings.registration_deadline)
-                  : null
-              }
-              registrationEnabled={settings?.registration_enabled ?? false}
               unavailable={unavailable}
             />
             <Link href="/manager/sign-in" className="returning-link">

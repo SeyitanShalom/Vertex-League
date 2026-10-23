@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { AnimatePresence, m, useIsPresent, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Vertex League home">
@@ -93,6 +94,7 @@ export function Header({ testMode }: { testMode: boolean }) {
             <Link href="/manager/sign-in">Team sign-in</Link>
           </nav>
           <div className="nav-actions">
+            <AnimatedThemeToggle />
             <Button asChild size="sm" className="nav-register">
               <Link href="/#rules">
                 Register your team <ArrowUpRight size={16} />

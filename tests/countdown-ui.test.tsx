@@ -12,12 +12,7 @@ const deadline = "2026-11-01T18:00:00Z";
 describe("registration deadline controls", () => {
   it("renders a disabled start button when the deadline has passed", () => {
     const markup = renderToStaticMarkup(
-      <RegistrationEntryAction
-        deadline={deadline}
-        deadlineLabel="1 Nov 2026, 7:00 pm WAT"
-        registrationEnabled
-        unavailable={REGISTRATION_DEADLINE_PASSED}
-      />,
+      <RegistrationEntryAction deadline={deadline} unavailable={REGISTRATION_DEADLINE_PASSED} />,
     );
     expect(markup).toContain("Registration closed");
     expect(markup).toMatch(/<button[^>]*disabled/);
@@ -26,12 +21,7 @@ describe("registration deadline controls", () => {
 
   it("renders an active registration link before the deadline", () => {
     const markup = renderToStaticMarkup(
-      <RegistrationEntryAction
-        deadline={deadline}
-        deadlineLabel="1 Nov 2026, 7:00 pm WAT"
-        registrationEnabled
-        unavailable={null}
-      />,
+      <RegistrationEntryAction deadline={deadline} unavailable={null} />,
     );
     expect(markup).toContain('href="/register"');
     expect(markup).toContain("Start your registration");
@@ -39,7 +29,12 @@ describe("registration deadline controls", () => {
 
   it("disables the hero registration button after the deadline", () => {
     const markup = renderToStaticMarkup(
-      <RegistrationHeroAction deadline={deadline} unavailable={REGISTRATION_DEADLINE_PASSED} />,
+      <RegistrationHeroAction
+        deadline={deadline}
+        deadlineLabel="1 Nov 2026, 7:00 pm WAT"
+        registrationEnabled
+        unavailable={REGISTRATION_DEADLINE_PASSED}
+      />,
     );
     expect(markup).toMatch(/<button[^>]*disabled/);
     expect(markup).not.toContain('href="#rules"');
