@@ -378,12 +378,13 @@ svg {
   gap: 16px;
 }
 .theme-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 50%;
@@ -392,6 +393,15 @@ svg {
   transition:
     background-color 0.18s,
     border-color 0.18s;
+}
+.theme-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+.theme-toggle svg {
+  width: 20px;
+  height: 20px;
 }
 .theme-toggle:hover:not(:disabled) {
   background: var(--surface-raised);
@@ -908,7 +918,7 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 25px;
-  padding: 22px 0;
+  padding: 14px 0;
   cursor: pointer;
   list-style: none;
   font-weight: 500;
@@ -919,6 +929,7 @@ svg {
 }
 .faq-list summary span {
   font-size: 25px;
+  line-height: 1;
   color: var(--primary-text);
   font-weight: 400;
 }
@@ -926,7 +937,7 @@ svg {
   transform: rotate(45deg);
 }
 .faq-list details p {
-  padding-bottom: 25px;
+  padding-bottom: 16px;
   font-size: 13px;
   color: var(--muted);
 }
