@@ -381,15 +381,15 @@ svg {
   position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  padding: 0;
+  width: 60px;
+  height: 32px;
+  padding: 3px 7px;
   border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--primary-text);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--muted);
   transition:
     background-color 0.18s,
     border-color 0.18s;
@@ -397,18 +397,41 @@ svg {
 .theme-toggle::after {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: -6px -2px;
+}
+.theme-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--action-background);
+  transform: translateX(28px);
+  transition:
+    transform 0.25s ease,
+    background-color 0.18s;
 }
 .theme-toggle svg {
-  width: 20px;
-  height: 20px;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  transition: color 0.18s;
+}
+.theme-toggle .theme-toggle-sun {
+  color: var(--action-foreground);
 }
 .theme-toggle:hover:not(:disabled) {
-  background: var(--surface-raised);
   border-color: var(--border-strong);
 }
-:root[data-theme="dark"] .theme-toggle {
-  color: var(--brand-accent);
+:root[data-theme="dark"] .theme-toggle-thumb {
+  transform: translateX(0);
+}
+:root[data-theme="dark"] .theme-toggle-moon {
+  color: var(--action-foreground);
+}
+:root[data-theme="dark"] .theme-toggle-sun {
+  color: var(--muted);
 }
 .menu-button {
   display: none;
