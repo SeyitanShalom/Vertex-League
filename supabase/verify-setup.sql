@@ -29,7 +29,7 @@ select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;
 
--- Expected: 5 rows, all true.
+-- Expected: 6 rows, all true.
 select
   'vertex_league' as migration,
   to_regprocedure('public.create_team_registration(text,jsonb,uuid,text,text)') is not null as applied
@@ -60,4 +60,17 @@ select
   and to_regprocedure('public.load_manager_draft(text,uuid)') is not null
   and to_regprocedure('public.save_manager_draft(text,uuid,jsonb)') is not null
   and not has_function_privilege('authenticated',
-    'public.create_manager_registration(text,jsonb,uuid,text,text,uuid)', 'execute');
+    'public.create_manager_registration(text,jsonb,uuid,text,text,uuid)', 'execute')
+union all
+select
+  'manager_email_auth',
+  (select count(*) = 4
+   from pg_catalog.pg_proc as functions
+   join pg_catalog.pg_namespace as schemas on schemas.oid = functions.pronamespace
+   where schemas.nspname = 'public'
+     and functions.proname in (
+       'save_manager_draft', 'create_manager_registration',
+       'claim_manager_registration', 'correct_manager_registration'
+     )
+     and pg_catalog.pg_get_functiondef(functions.oid) like '%email_confirmed_at%'
+     and pg_catalog.pg_get_functiondef(functions.oid) not like '%phone_confirmed_at%');
