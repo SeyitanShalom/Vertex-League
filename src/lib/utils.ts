@@ -16,6 +16,13 @@ export function dateLabel(value: string) {
     new Date(value),
   );
 }
+export function deadlineLabel(value: string) {
+  return `${new Intl.DateTimeFormat("en-NG", {
+    timeZone: "Africa/Lagos",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value))} WAT`;
+}
 export function humanize(value: string) {
   return value.replaceAll("_", " ");
 }

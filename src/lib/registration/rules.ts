@@ -6,11 +6,13 @@ import type {
   AdminAction,
 } from "@/types/domain";
 
+export const REGISTRATION_DEADLINE_PASSED = "The registration deadline has passed.";
+
 export function registrationAvailability(settings: OperationalSettings | null, now = new Date()) {
   if (!settings) return "Registration is being set up. Please check back shortly.";
   if (!settings.registration_enabled) return "Registration is currently closed.";
   if (settings.registration_deadline && now >= new Date(settings.registration_deadline))
-    return "The registration deadline has passed.";
+    return REGISTRATION_DEADLINE_PASSED;
   if (settings.mode === "live" && !settings.registration_deadline)
     return "The organizer is finalizing the registration dates.";
   return null;

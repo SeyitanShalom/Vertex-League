@@ -4,7 +4,7 @@ import { TeamForm } from "@/components/registration/team-form";
 import { PageIntro } from "@/components/shared";
 import { getSettings, paymentConfigured, deploymentMode } from "@/lib/config/server";
 import { registrationAvailability } from "@/lib/registration/rules";
-import { money, dateLabel } from "@/lib/utils";
+import { money, deadlineLabel } from "@/lib/utils";
 import { managerIdentity } from "@/lib/auth";
 import { legacyRegistrationForEmail, managerRegistrationReference } from "@/lib/registration/data";
 import { serviceClient } from "@/lib/supabase/service";
@@ -47,6 +47,12 @@ export default async function RegisterPage() {
             disabledReason={disabledReason}
             verifiedEmail={identity.email}
             draft={draft.success ? draft.data : undefined}
+            deadline={settings?.registration_enabled ? settings.registration_deadline : null}
+            deadlineLabel={
+              settings?.registration_enabled && settings.registration_deadline
+                ? deadlineLabel(settings.registration_deadline)
+                : null
+            }
           />
         </section>
         <aside>
@@ -69,7 +75,7 @@ export default async function RegisterPage() {
               {settings?.registration_deadline && (
                 <div>
                   <dt>Registration deadline</dt>
-                  <dd>{dateLabel(settings.registration_deadline)}</dd>
+                  <dd>{deadlineLabel(settings.registration_deadline)}</dd>
                 </div>
               )}
               <div>

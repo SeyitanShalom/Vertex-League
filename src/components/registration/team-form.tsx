@@ -18,6 +18,11 @@ import { Notice } from "@/components/shared";
 import type { Team } from "@/types/domain";
 import type { RegistrationDraft } from "@/lib/validations/registration";
 import { createDraftAutosave, type DraftSaveStatus } from "@/lib/registration/draft-autosave";
+import { REGISTRATION_DEADLINE_PASSED } from "@/lib/registration/rules";
+import {
+  RegistrationCountdown,
+  useRegistrationCountdown,
+} from "@/components/registration/registration-countdown";
 
 type Fields = keyof z.input<typeof teamFieldsSchema>;
 const draftFields = new Set<string>([
@@ -74,16 +79,22 @@ export function TeamForm({
   existing,
   verifiedEmail,
   draft,
+  deadline = null,
+  deadlineLabel = null,
 }: {
   disabledReason?: string | null;
   existing?: { reference: string; team: Team };
   verifiedEmail?: string;
   draft?: RegistrationDraft;
+  deadline?: string | null;
+  deadlineLabel?: string | null;
 }) {
   const router = useRouter();
   const submissionKey = useRef<string | null>(null);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState<{ error?: string; success?: string }>({});
+  const remaining = useRegistrationCountdown(existing ? null : deadline);
+  const currentDisabledReason = remaining?.expired ? REGISTRATION_DEADLINE_PASSED : disabledReason;
   const [draftStatus, setDraftStatus] = useState<DraftSaveStatus>(draft ? "saved" : "idle");
   const [autosave] = useState(() =>
     createDraftAutosave<RegistrationDraft>(async (value) => {
@@ -128,7 +139,12 @@ export function TeamForm({
     return !!verifiedEmail && !existing;
   }
   async function submit(values: z.output<typeof registrationSchema>) {
-    if (submitting.current || disabledReason) return;
+    if (
+      submitting.current ||
+      currentDisabledReason ||
+      (!existing && deadline && Date.now() >= Date.parse(deadline))
+    )
+      return;
     submitting.current = true;
     setFeedback({});
     try {
@@ -175,7 +191,15 @@ export function TeamForm({
       noValidate
       className="registration-form"
     >
-      {disabledReason && <Notice>{disabledReason}</Notice>}
+      {currentDisabledReason && <Notice>{currentDisabledReason}</Notice>}
+      {!existing && deadline && deadlineLabel && (
+        <RegistrationCountdown
+          deadline={deadline}
+          deadlineLabel={deadlineLabel}
+          remaining={remaining}
+          compact
+        />
+      )}
       {feedback.error && <Notice tone="error">{feedback.error}</Notice>}
       {feedback.success && <Notice tone="success">{feedback.success}</Notice>}
       <div className="form-grid">
@@ -271,7 +295,11 @@ export function TeamForm({
         </div>
       </div>
       <div className="form-actions">
-        <Button type="submit" size="lg" disabled={!!disabledReason || form.formState.isSubmitting}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!!currentDisabledReason || form.formState.isSubmitting}
+        >
           {form.formState.isSubmitting
             ? "Saving your details…"
             : existing

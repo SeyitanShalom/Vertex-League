@@ -3,11 +3,12 @@ import { ArrowDown, ArrowUpRight, Check, ClipboardList, ShieldCheck, Trophy } fr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CompetitionHero } from "@/components/home/competition-hero";
+import { RegistrationEntryAction } from "@/components/home/registration-entry-action";
 import { Reveal } from "@/components/motion/reveal";
 import { competition } from "@/lib/config/competition";
 import { deploymentMode, getSettings, operationalContact } from "@/lib/config/server";
 import { registrationAvailability } from "@/lib/registration/rules";
-import { money, dateLabel } from "@/lib/utils";
+import { money, deadlineLabel } from "@/lib/utils";
 const steps = [
   {
     number: "01",
@@ -38,7 +39,10 @@ export default async function Home() {
   const fee = settings?.registration_fee ?? (mode === "test" ? 100 : 34000);
   return (
     <>
-      <CompetitionHero />
+      <CompetitionHero
+        deadline={settings?.registration_deadline ?? null}
+        unavailable={unavailable}
+      />
       <div className="facts-strip">
         <Reveal className="container facts-grid" distance={16}>
           <div>
@@ -60,7 +64,7 @@ export default async function Home() {
           {settings?.registration_deadline && (
             <div>
               <span className="tiny-label">REGISTRATION CLOSES</span>
-              <strong>{dateLabel(settings.registration_deadline)}</strong>
+              <strong>{deadlineLabel(settings.registration_deadline)}</strong>
             </div>
           )}
         </Reveal>
@@ -205,11 +209,16 @@ export default async function Home() {
               <br />
               Player details are collected at physical screening.
             </p>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/register">
-                Start your registration <ArrowUpRight size={20} />
-              </Link>
-            </Button>
+            <RegistrationEntryAction
+              deadline={settings?.registration_deadline ?? null}
+              deadlineLabel={
+                settings?.registration_deadline
+                  ? deadlineLabel(settings.registration_deadline)
+                  : null
+              }
+              registrationEnabled={settings?.registration_enabled ?? false}
+              unavailable={unavailable}
+            />
             <Link href="/manager/sign-in" className="returning-link">
               Already registered? Sign in to your team ↗
             </Link>
@@ -244,7 +253,7 @@ export default async function Home() {
             </ul>
             {settings?.registration_deadline && (
               <p className="entry-deadline">
-                Deadline: {dateLabel(settings.registration_deadline)}
+                Deadline: {deadlineLabel(settings.registration_deadline)}
               </p>
             )}
             {unavailable && <p className="small">{unavailable}</p>}

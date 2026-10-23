@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowDown, ArrowUpRight, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDown, ShieldCheck } from "lucide-react";
 import { Reveal } from "@/components/motion/reveal";
+import { RegistrationHeroAction } from "@/components/home/registration-entry-action";
 
 // Centered layout and staggered floating motion adapted from Modern Hero Section
 // by ravikatiyar162: https://21st.dev/@ravikatiyar162/components/modern-hero-section
@@ -12,7 +12,13 @@ const competitions = [
   { name: "Vertex FA Cup", logo: "/VERTEX FA CUP LOGO PNG.png" },
 ];
 
-export function CompetitionHero() {
+export function CompetitionHero({
+  deadline,
+  unavailable,
+}: {
+  deadline: string | null;
+  unavailable: string | null;
+}) {
   return (
     <section className="hero" aria-labelledby="hero-title">
       <div className="container hero-inner">
@@ -31,11 +37,7 @@ export function CompetitionHero() {
             Step forward for Vertex League.
           </Reveal>
           <Reveal className="button-row" delay={0.18}>
-            <Button asChild size="lg">
-              <Link href="#rules">
-                Register your team <ArrowUpRight size={20} />
-              </Link>
-            </Button>
+            <RegistrationHeroAction deadline={deadline} unavailable={unavailable} />
             <Link className="text-link" href="#about">
               Explore the league <ArrowDown size={17} />
             </Link>
