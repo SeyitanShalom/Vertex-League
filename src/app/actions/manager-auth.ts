@@ -12,6 +12,23 @@ const credentials = z.object({
   password: z.string().min(8).max(256),
 });
 
+function signUpError(error: { code?: string; message?: string; status?: number }) {
+  const details = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
+  console.error("Manager account creation failed", {
+    code: error.code,
+    status: error.status,
+  });
+  if (details.includes("redirect") || details.includes("site url"))
+    return "Account setup is misconfigured. Please contact the organizer.";
+  if (details.includes("email signup") || details.includes("signup is disabled"))
+    return "Account creation is currently disabled. Please contact the organizer.";
+  if (details.includes("rate limit") || details.includes("too many"))
+    return "Too many account creation attempts. Please wait a while and try again.";
+  if (details.includes("sending confirmation email") || details.includes("smtp"))
+    return "The confirmation email could not be sent. Please contact the organizer.";
+  return "Unable to create this account. Check the details and try again.";
+}
+
 export async function signUpManager(input: unknown) {
   if (!hasDatabase()) return { error: "Sign-in is being set up. Please check back shortly." };
   const parsed = credentials.safeParse(input);
@@ -25,7 +42,7 @@ export async function signUpManager(input: unknown) {
       ...parsed.data,
       options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
     });
-    if (error) return { error: "Unable to create this account. Check the details and try again." };
+    if (error) return { error: signUpError(error) };
     return {
       message:
         "If this email is new, check it for a confirmation link. Already have an account? Sign in or reset your password.",
