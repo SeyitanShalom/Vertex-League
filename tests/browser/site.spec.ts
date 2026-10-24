@@ -52,6 +52,14 @@ test("manager account and password screens fit on small viewports", async ({ pag
   await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Confirm password")).toBeVisible();
+  const resend = page.getByRole("button", { name: "Resend confirmation email" });
+  await expect(resend).toBeDisabled();
+  await page.getByLabel("Email address").fill("not-an-email");
+  await resend.click();
+  await expect(page.locator(".auth-panel").getByRole("alert")).toContainText(
+    "Enter a valid email address above.",
+  );
+  await page.getByLabel("Email address").clear();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
     path: `test-results/manager-create-${info.project.name}.png`,

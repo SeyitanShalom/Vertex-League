@@ -12,9 +12,13 @@ const credentials = z.object({
   password: z.string().min(8).max(256),
 });
 
-function signUpError(error: { code?: string; message?: string; status?: number }) {
-  const details = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
-  console.error("Manager account creation failed", {
+function emailAuthError(
+  error: { code?: string; message?: string; status?: number },
+  operation: "signup" | "resend" | "reset",
+) {
+  const details = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase().replaceAll("_", " ");
+  console.error("Manager email authentication failed", {
+    operation,
     code: error.code,
     status: error.status,
   });
@@ -22,11 +26,17 @@ function signUpError(error: { code?: string; message?: string; status?: number }
     return "Account setup is misconfigured. Please contact the organizer.";
   if (details.includes("email signup") || details.includes("signup is disabled"))
     return "Account creation is currently disabled. Please contact the organizer.";
-  if (details.includes("rate limit") || details.includes("too many"))
-    return "Too many account creation attempts. Please wait a while and try again.";
-  if (details.includes("sending confirmation email") || details.includes("smtp"))
-    return "The confirmation email could not be sent. Please contact the organizer.";
-  return "Unable to create this account. Check the details and try again.";
+  if (error.status === 429 || details.includes("rate limit") || details.includes("too many"))
+    return "Too many email requests. Please wait a while before requesting another link.";
+  if (
+    (details.includes("sending") && details.includes("email")) ||
+    details.includes("smtp") ||
+    details.includes("email address not authorized")
+  )
+    return "The email could not be sent. Please try again later or contact the organizer.";
+  return operation === "signup"
+    ? "Unable to create this account. Check the details and try again."
+    : "Unable to send the email right now. Please try again later or contact the organizer.";
 }
 
 export async function signUpManager(input: unknown) {
@@ -42,13 +52,40 @@ export async function signUpManager(input: unknown) {
       ...parsed.data,
       options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
     });
-    if (error) return { error: signUpError(error) };
+    if (error) return { error: emailAuthError(error, "signup") };
     return {
       message:
-        "If this email is new, check it for a confirmation link. Already have an account? Sign in or reset your password.",
+        "If this email needs confirmation, check your inbox and spam folder for a link. Already confirmed your email? Sign in or reset your password; creating the account again will not send another confirmation.",
     };
   } catch {
     return { error: "Too many requests. Please wait a while and try again." };
+  }
+}
+
+export async function resendManagerConfirmation(rawEmail: string) {
+  if (!hasDatabase()) return { error: "Sign-in is being set up. Please check back shortly." };
+  const parsed = emailSchema.safeParse(rawEmail);
+  if (!parsed.success) return { error: "Enter a valid email address above." };
+  try {
+    // Share the signup allowance so resending cannot bypass its email limit.
+    await rateLimit(`manager-signup:${parsed.data}`, 5, 3600);
+    await rateLimit(`manager-confirmation:${parsed.data}`, 1, 60);
+    const { error } = await (
+      await authClient()
+    ).auth.resend({
+      type: "signup",
+      email: parsed.data,
+      options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
+    });
+    if (error) return { error: emailAuthError(error, "resend") };
+    return {
+      message:
+        "If this email has an account awaiting confirmation, a new link has been requested. Check your inbox and spam folder, and wait a minute before requesting another. Already confirmed? Sign in or reset your password.",
+    };
+  } catch {
+    return {
+      error: "Unable to request another link right now. Please wait a minute and try again.",
+    };
   }
 }
 
@@ -60,6 +97,11 @@ export async function signInManager(input: unknown) {
     await rateLimit(`manager-login:${parsed.data.email}`, 10, 900);
     const client = await authClient();
     const { error } = await client.auth.signInWithPassword(parsed.data);
+    if (error?.code === "email_not_confirmed")
+      return {
+        error:
+          "Confirm your email before signing in. Use Resend confirmation email below for a new link.",
+      };
     if (error) return { error: "Unable to sign in. Check your email, password and confirmation." };
     if (!(await managerIdentity())) {
       await client.auth.signOut({ scope: "local" });
@@ -77,11 +119,12 @@ export async function requestManagerPasswordReset(rawEmail: string) {
   if (!parsed.success) return { error: "Enter a valid email address." };
   try {
     await rateLimit(`manager-reset:${parsed.data}`, 5, 3600);
-    await (
+    const { error } = await (
       await authClient()
     ).auth.resetPasswordForEmail(parsed.data, {
       redirectTo: `${siteUrl()}/auth/confirm`,
     });
+    if (error) return { error: emailAuthError(error, "reset") };
     return { message: "If this email has an account, a password-reset link is on its way." };
   } catch {
     return { error: "Please wait a while before requesting another link." };
