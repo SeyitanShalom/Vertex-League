@@ -40,7 +40,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 
 ## Configuration
 
-Public copy, FAQs and rules live in `src/lib/config/competition.ts`. Add only organizer-supplied dates, eligibility criteria and facts. The header and footer use the supplied `public/LOGO 5.png`, framed to exclude the PNG's transparent margins. In dark mode, the shared logo filter swaps navy and white across the brand and competition logos, preserving their contrasting details and transparency. Fonts are bundled locally.
+Public copy, FAQs and rules live in `src/lib/config/competition.ts`. Add only organizer-supplied dates, eligibility criteria and facts. The header and footer use the supplied `public/LOGO 5.png`, framed to exclude the PNG's transparent margins. In dark mode, the shared logo filter swaps navy and white only on the header and footer logos, preserving their contrasting details and transparency. Competition logos retain their separate dark-mode styling, including the Championship logo's original blue center details. Fonts are bundled locally.
 
 Brand colors are navy `#000080` (main) and yellow `#ffd800` (accent), on white page backgrounds. The shared palette and related surface colors are defined in `src/app/globals.css`; the standalone site icon uses the same colors. Typography uses the supplied Mark Pro files with Anton display headings and Manrope as a fallback. The development/build hooks prepare the font stylesheet automatically; supported filenames and formats are described in `public/fonts/README.md`.
 

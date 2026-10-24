@@ -649,8 +649,20 @@ svg {
   height: auto;
   filter: drop-shadow(0 16px 16px rgb(0 0 128 / 0.08));
 }
-:root[data-theme="dark"] .competition-logo img {
-  filter: url("#logo-dark-colors") drop-shadow(0 16px 16px rgb(0 0 0 / 0.16));
+:root[data-theme="dark"] .competition-logo-monochrome,
+:root[data-theme="dark"] .competition-logo-championship > img:first-child {
+  filter: brightness(0) invert(1);
+}
+.competition-logo .competition-logo-center {
+  display: none;
+}
+:root[data-theme="dark"] .competition-logo-center {
+  display: block;
+  position: absolute;
+  inset: 0;
+  /* Preserve the blue circle, lettering and trophy; diagonal accents stay white. */
+  clip-path: circle(28.2% at 51.1% 51.5%);
+  filter: none;
 }
 .competition-logo-name {
   min-height: 30px;
