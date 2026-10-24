@@ -15,12 +15,32 @@ export async function proxy(request: NextRequest) {
     "form-action 'self'",
     "frame-ancestors 'none'",
   ].join("; ");
+  const tokenHash = request.nextUrl.searchParams.get("token_hash");
+  const emailType = request.nextUrl.searchParams.get("type");
+  if (
+    request.nextUrl.pathname === "/" &&
+    tokenHash &&
+    (emailType === "email" || emailType === "recovery")
+  ) {
+    // Older email templates can place the token on the homepage instead of the verifier.
+    const confirmationUrl = new URL("/auth/confirm", request.url);
+    confirmationUrl.searchParams.set("token_hash", tokenHash);
+    confirmationUrl.searchParams.set("type", emailType);
+    const confirmation = NextResponse.redirect(confirmationUrl);
+    confirmation.headers.set("Content-Security-Policy", csp);
+    confirmation.headers.set("Cache-Control", "private, no-store, max-age=0");
+    confirmation.headers.set("Referrer-Policy", "no-referrer");
+    confirmation.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+    return confirmation;
+  }
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", csp);
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   if (
-    /^\/(admin|auth|manager|team|register|payment|registration|api\/logo)(\/|$)/.test(request.nextUrl.pathname) &&
+    /^\/(admin|auth|manager|team|register|payment|registration|api\/logo)(\/|$)/.test(
+      request.nextUrl.pathname,
+    ) &&
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ) {
@@ -50,7 +70,11 @@ export async function proxy(request: NextRequest) {
     await client.auth.getClaims().catch(() => null);
   }
   response.headers.set("Content-Security-Policy", csp);
-  if (/^\/(admin|auth|manager|team|register|payment|registration|access|api)(\/|$)/.test(request.nextUrl.pathname)) {
+  if (
+    /^\/(admin|auth|manager|team|register|payment|registration|access|api)(\/|$)/.test(
+      request.nextUrl.pathname,
+    )
+  ) {
     response.headers.set("Cache-Control", "private, no-store, max-age=0");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }

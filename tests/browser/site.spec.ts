@@ -1,4 +1,25 @@
 import { test, expect } from "@playwright/test";
+
+test("homepage email tokens redirect privately to the confirmation verifier", async ({
+  request,
+}) => {
+  for (const type of ["email", "recovery"]) {
+    const response = await request.get(
+      `/?token_hash=example-token&type=${type}&next=https://other.example`,
+      { maxRedirects: 0 },
+    );
+    expect(response.status()).toBe(307);
+    const destination = new URL(response.headers().location, response.url());
+    expect(destination.origin).toBe(new URL(response.url()).origin);
+    expect(destination.pathname).toBe("/auth/confirm");
+    expect(destination.searchParams.get("token_hash")).toBe("example-token");
+    expect(destination.searchParams.get("type")).toBe(type);
+    expect(destination.searchParams.has("next")).toBe(false);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+    expect(response.headers()["referrer-policy"]).toBe("no-referrer");
+  }
+});
+
 test("landing page, navigation and manager sign-in", async ({ page }, info) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
