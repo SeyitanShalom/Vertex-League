@@ -630,6 +630,204 @@ describe("test registration deletion", () => {
   });
 });
 
+describe("organizer registration deletion", () => {
+  const remove = (saved: Saved, mode = "test", confirmed: boolean | null = true) =>
+    db.query("select public.delete_registration($1::uuid,$2,$3,$4)", [
+      saved.id,
+      saved.reference,
+      mode,
+      confirmed,
+    ]);
+
+  it.each([
+    [outsider, "aal2"],
+    [manager, "aal2"],
+    [admin, "aal1"],
+  ])("requires an organizer with MFA: %s / %s", async (userId, aal) => {
+    const saved = await register();
+    await authenticate(userId, aal);
+    await expect(remove(saved)).rejects.toThrow("access_denied");
+  });
+
+  it.each([false, null])("requires explicit deletion confirmation: %s", async (confirmed) => {
+    const saved = await register();
+    await authenticate();
+    await expect(remove(saved, "test", confirmed)).rejects.toThrow(
+      "deletion_confirmation_required",
+    );
+  });
+
+  it.each(["wrong reference", "wrong mode"])("rejects a %s", async (mismatch) => {
+    const saved = await register();
+    await authenticate();
+    await expect(
+      remove(
+        mismatch === "wrong reference" ? { ...saved, reference: "VL-TEST-WRONG" } : saved,
+        mismatch === "wrong mode" ? "live" : "test",
+      ),
+    ).rejects.toThrow("registration_not_found");
+  });
+
+  it("only removes the confirmed registration and refreshes dashboard statistics", async () => {
+    const target = await register();
+    const other = await register({
+      ...team,
+      team_name: "Lions FC",
+      phone: "+2348031234568",
+      whatsapp_number: "+2348031234568",
+    });
+    await authenticate();
+    await remove(target);
+    const list = await db.query<{ data: { total: number; rows: { id: string }[] } }>(
+      "select public.admin_list_registrations('test') data",
+    );
+    const stats = await db.query<{ data: { total: number } }>(
+      "select public.admin_registration_stats('test') data",
+    );
+    expect(list.rows[0].data.total).toBe(1);
+    expect(list.rows[0].data.rows.map((row) => row.id)).toEqual([other.id]);
+    expect(stats.rows[0].data.total).toBe(1);
+    await db.exec("reset role;");
+    expect(
+      (await db.query("select id from public.teams where id=$1", [target.team_id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (
+        await db.query("select phone from public.manager_contacts where team_id=$1", [
+          target.team_id,
+        ])
+      ).rows,
+    ).toHaveLength(0);
+  });
+
+  it("deletes live registrations through the same protected operation", async () => {
+    await db.exec(
+      "update public.competition_settings set registration_enabled=true, registration_deadline=now()+interval '1 day' where mode='live'",
+    );
+    const saved = await register(team, randomUUID(), "live");
+    await authenticate();
+    await remove(saved, "live");
+    expect(
+      (await db.query("select id from public.registrations where id=$1", [saved.id])).rows,
+    ).toHaveLength(0);
+  });
+
+  it("retains reviewed payment and refund history without retaining access secrets", async () => {
+    const saved = await register();
+    await authenticate();
+    await action(saved.id, "payment_received");
+    await action(saved.id, "reject", "Did not pass physical screening");
+    await action(saved.id, "refund", "Full refund completed", {
+      transfer_reference: "REFUND-DELETE-TEST",
+      refunded_at: new Date().toISOString(),
+    });
+    await remove(saved);
+    const events = await db.query<{
+      admin_id: string;
+      registration_id: null;
+      action: string;
+      previous_value: {
+        registration: Record<string, unknown>;
+        team: { team_name: string };
+        payments: { payment_status: string; amount: number }[];
+        refunds: { transfer_reference: string; amount: number }[];
+      };
+      new_value: { registration_id: string; reference: string; mode: string };
+    }>("select * from public.admin_audit_logs where action='registration_deleted'");
+    expect(events.rows).toHaveLength(1);
+    const event = events.rows[0];
+    expect(event.admin_id).toBe(admin);
+    expect(event.registration_id).toBeNull();
+    expect(event.new_value).toMatchObject({
+      registration_id: saved.id,
+      reference: saved.reference,
+      mode: "test",
+    });
+    expect(event.previous_value.team.team_name).toBe(team.team_name);
+    expect(event.previous_value.payments[0]).toMatchObject({
+      payment_status: "confirmed",
+      amount: 100,
+    });
+    expect(event.previous_value.refunds[0]).toMatchObject({
+      transfer_reference: "REFUND-DELETE-TEST",
+      amount: 100,
+    });
+    for (const field of ["status_token_hash", "payload_hash", "submission_key"])
+      expect(event.previous_value.registration).not.toHaveProperty(field);
+    const previousHistory = await db.query<{
+      registration_id: null;
+      new_value: { deleted_registration_id: string };
+    }>(
+      "select registration_id,new_value from public.admin_audit_logs where action='payment_received'",
+    );
+    expect(previousHistory.rows[0].registration_id).toBeNull();
+    expect(previousHistory.rows[0].new_value.deleted_registration_id).toBe(saved.id);
+    expect(
+      (await db.query("select id from public.payments where registration_id=$1", [saved.id])).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query("select id from public.refunds where registration_id=$1", [saved.id])).rows,
+    ).toHaveLength(0);
+  });
+
+  it("preserves the manager account and releases its team name and contact numbers", async () => {
+    const saved = await registerManager();
+    await authenticate();
+    await remove(saved);
+    await db.exec("reset role;");
+    expect((await db.query("select id from auth.users where id=$1", [manager])).rows).toHaveLength(
+      1,
+    );
+    const replacement = await registerManager();
+    expect(replacement.id).not.toBe(saved.id);
+  });
+
+  it("rolls back the deletion and its audit changes if a dependent row cannot be removed", async () => {
+    const saved = await register();
+    await db.exec(
+      "create table vertex_private.deletion_guard(team_id uuid references public.teams(id));",
+    );
+    await db.query("insert into vertex_private.deletion_guard values($1)", [saved.team_id]);
+    await authenticate();
+    await db.exec("savepoint blocked_deletion;");
+    await expect(remove(saved)).rejects.toThrow("foreign key constraint");
+    await db.exec("rollback to savepoint blocked_deletion; release savepoint blocked_deletion;");
+    expect(
+      (await db.query("select id from public.registrations where id=$1", [saved.id])).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query("select id from public.payments where registration_id=$1", [saved.id])).rows,
+    ).toHaveLength(1);
+    expect(
+      (await db.query("select id from public.admin_audit_logs where action='registration_deleted'"))
+        .rows,
+    ).toHaveLength(0);
+    expect(
+      (
+        await db.query("select id from public.admin_audit_logs where registration_id=$1", [
+          saved.id,
+        ])
+      ).rows,
+    ).toHaveLength(1);
+  });
+
+  it("does not grant anonymous or direct table deletion access", async () => {
+    const privileges = await db.query<{
+      anonymous_execute: boolean;
+      table_delete: boolean;
+      trigger_execute: boolean;
+    }>(`select
+      has_function_privilege('anon','public.delete_registration(uuid,text,text,boolean)','execute') anonymous_execute,
+      has_table_privilege('authenticated','public.registrations','delete') table_delete,
+      has_function_privilege('authenticated','vertex_private.reset_empty_registration_references()','execute') trigger_execute`);
+    expect(privileges.rows[0]).toEqual({
+      anonymous_execute: false,
+      table_delete: false,
+      trigger_execute: false,
+    });
+  });
+});
+
 describe("manager account ownership", () => {
   it("stores a cross-device draft and clears it on submission", async () => {
     const draft = { team_name: "Eagles FC", manager_name: "Ada Okafor", phone: team.phone };

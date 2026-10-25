@@ -30,7 +30,7 @@ select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;
 
--- Expected: 9 rows, all true.
+-- Expected: 10 rows, all true.
 select
   'vertex_league' as migration,
   to_regprocedure('public.create_team_registration(text,jsonb,uuid,text,text)') is not null as applied
@@ -109,7 +109,18 @@ select
   and pg_get_functiondef(to_regprocedure('public.admin_registration_action(uuid,text,text,jsonb)'))
     like '%correction_payment_required%'
   and not has_function_privilege('authenticated',
-    'public.correct_team_registration(uuid,text,jsonb)', 'execute');
+    'public.correct_team_registration(uuid,text,jsonb)', 'execute')
+union all
+select
+  'admin_registration_deletion',
+  to_regprocedure('public.delete_registration(uuid,text,text,boolean)') is not null
+  and not has_function_privilege('anon',
+    'public.delete_registration(uuid,text,text,boolean)', 'execute')
+  and has_function_privilege('authenticated',
+    'public.delete_registration(uuid,text,text,boolean)', 'execute')
+  and not (select prosecdef from pg_proc
+    where oid = to_regprocedure('public.delete_registration(uuid,text,text,boolean)'))
+  and not has_table_privilege('authenticated', 'public.registrations', 'delete');
 
 -- Read without consuming a reference number. When no registrations remain after
 -- a reset, expect last_value=1, is_called=false, next_number=1.

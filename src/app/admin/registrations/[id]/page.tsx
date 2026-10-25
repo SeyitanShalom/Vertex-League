@@ -8,7 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 import { deploymentMode } from "@/lib/config/server";
 import { registrationColumns } from "@/lib/registration/data";
 import { RegistrationActions } from "@/components/admin/registration-actions";
-import { DeleteTestRegistration } from "@/components/admin/delete-test-registration";
+import { DeleteRegistration } from "@/components/admin/delete-registration";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Notice } from "@/components/shared";
@@ -170,19 +170,16 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
               hasManagerAccount={!!row.manager_user_id}
               correctionApprovedAt={row.correction_approved_at}
             />
-            {deploymentMode() === "test" && (
-              <div className="record-delete-detail">
-                <DeleteTestRegistration
-                  id={id}
-                  reference={row.registration_reference}
-                  mode={row.mode}
-                  payment={payment?.payment_status ?? "pending"}
-                  status={row.registration_status}
-                  refund={row.refund_status}
-                  redirectOnSuccess
-                />
-              </div>
-            )}
+            <div className="record-delete-detail">
+              <DeleteRegistration
+                id={id}
+                reference={row.registration_reference}
+                teamName={row.teams.team_name}
+                payment={payment?.payment_status ?? "pending"}
+                refund={row.refund_status}
+                redirectOnSuccess
+              />
+            </div>
           </section>
           <section className="panel">
             <h3>Internal notes</h3>

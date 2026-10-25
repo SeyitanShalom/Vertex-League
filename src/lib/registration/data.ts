@@ -100,6 +100,7 @@ export function safeDatabaseError(error: { code?: string; message?: string }) {
     duplicate_submission: "This submission has already been processed. Open your team page.",
     already_registered: "Your account already has a team. Open your team page.",
     registration_not_found: "This registration is no longer available. Refresh the page.",
+    deletion_confirmation_required: "Confirm deletion before continuing.",
     test_deletion_not_allowed:
       "This test registration has payment, review, or badge history and cannot be deleted.",
     access_denied: "This registration could not be linked to your account. Contact the organizer.",

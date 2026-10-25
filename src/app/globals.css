@@ -1497,9 +1497,8 @@ svg {
   gap: 8px;
 }
 .record-delete-button {
-  width: 40px;
-  min-width: 40px;
-  padding: 0;
+  min-width: 44px;
+  padding: 0 10px;
 }
 .record-delete-detail {
   margin-top: 20px;

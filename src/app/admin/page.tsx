@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/badge";
 import { Notice } from "@/components/shared";
-import { DeleteTestRegistration } from "@/components/admin/delete-test-registration";
+import { DeleteRegistration } from "@/components/admin/delete-registration";
 export const metadata: Metadata = {
   title: "Registration dashboard",
   robots: { index: false, follow: false },
@@ -185,12 +185,11 @@ export default async function Dashboard({
                     <Link href={`/admin/registrations/${row.id}`}>
                       Review <ArrowUpRight size={13} style={{ display: "inline" }} />
                     </Link>
-                    <DeleteTestRegistration
+                    <DeleteRegistration
                       id={row.id}
                       reference={row.registration_reference}
-                      mode={mode}
+                      teamName={row.team_name}
                       payment={row.payment_status}
-                      status={row.registration_status}
                       refund={row.refund_status}
                     />
                   </div>

@@ -72,3 +72,30 @@ export async function deleteTestRegistration(raw: unknown) {
   revalidatePath(`/admin/registrations/${parsed.data.id}`);
   return { success: "Test registration deleted." };
 }
+
+const deleteRegistrationSchema = z.object({
+  id: z.uuid(),
+  reference: referenceSchema,
+  confirmed: z.literal(true),
+});
+
+export async function deleteRegistration(raw: unknown) {
+  const { client } = await requireAdmin();
+  const parsed = deleteRegistrationSchema.safeParse(raw);
+  if (!parsed.success)
+    return { error: "Enter the exact registration reference to confirm deletion." };
+  const { id, reference, confirmed } = parsed.data;
+  const { error } = await client.rpc("delete_registration", {
+    p_id: id,
+    p_reference: reference,
+    p_mode: deploymentMode(),
+    p_confirmed: confirmed,
+  });
+  if (error) return { error: safeDatabaseError(error) };
+  revalidatePath("/admin");
+  revalidatePath(`/admin/registrations/${id}`);
+  revalidatePath(`/registration/${reference}`);
+  revalidatePath(`/payment/${reference}`);
+  revalidatePath("/register");
+  return { success: "Registration deleted." };
+}
