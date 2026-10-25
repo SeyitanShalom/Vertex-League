@@ -91,10 +91,26 @@ describe("availability and edits", () => {
   });
   it("requires a live registration deadline", () =>
     expect(registrationAvailability({ ...settings, mode: "live" })).toBeTruthy());
-  it("locks paid teams until corrections are explicitly requested", () => {
+  it("locks submitted details until a correction fee and organizer approval are recorded", () => {
+    expect(canEdit("submitted", null)).toBe(false);
     expect(canEdit("awaiting_screening", null)).toBe(false);
-    expect(canEdit("correction_required", "2020-01-01T00:00:00Z")).toBe(true);
+    expect(canEdit("correction_required", null)).toBe(false);
+    expect(canEdit("correction_required", "2026-10-25T12:00:00Z")).toBe(true);
     expect(canEdit("approved", null)).toBe(false);
+  });
+  it("does not finalize a team while a correction is open", () => {
+    expect(permittedAction("approve", "confirmed", "correction_required", "none")).toBe(false);
+  });
+  it("prevents duplicate paid correction approvals", () => {
+    expect(
+      permittedAction(
+        "request_correction",
+        "confirmed",
+        "correction_required",
+        "none",
+        "2026-10-25T12:00:00Z",
+      ),
+    ).toBe(false);
   });
   it("does not allow approval before payment", () =>
     expect(permittedAction("approve", "pending", "submitted", "none")).toBe(false));

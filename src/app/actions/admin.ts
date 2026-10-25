@@ -6,6 +6,7 @@ import { adminActionSchema, referenceSchema } from "@/lib/validations/registrati
 import { safeDatabaseError } from "@/lib/registration/data";
 import { deploymentMode } from "@/lib/config/server";
 import { newAccessToken, hash, privateLink } from "@/lib/security";
+import { TEAM_CORRECTION_FEE } from "@/lib/registration/corrections";
 
 export async function updateRegistration(
   raw: unknown,
@@ -14,6 +15,10 @@ export async function updateRegistration(
   const parsed = adminActionSchema.safeParse(raw);
   if (!parsed.success) return { error: "Check the action details and try again." };
   const { id, action, reason, ...details } = parsed.data;
+  if (action === "request_correction" && details.correction_payment_received !== true)
+    return {
+      error: "Confirm receipt of the additional ₦2,000 correction fee before approving edits.",
+    };
   const { data: registration, error: lookupError } = await client
     .from("registrations")
     .select("registration_reference,manager_user_id")
@@ -23,13 +28,17 @@ export async function updateRegistration(
   if (lookupError || !registration)
     return { error: "This registration is not available in the current environment." };
   if (action === "recover_access" && registration.manager_user_id)
-    return { error: "This team uses manager sign-in. Recover the manager account instead." };
+    return { error: "This team uses team sign-in. Recover the team account instead." };
   const token = action === "recover_access" ? newAccessToken() : null;
   const { error } = await client.rpc("admin_registration_action", {
     p_id: id,
     p_action: action,
     p_reason: reason,
-    p_details: { ...details, ...(token ? { token_hash: hash(token) } : {}) },
+    p_details: {
+      ...details,
+      ...(action === "request_correction" ? { correction_fee_amount: TEAM_CORRECTION_FEE } : {}),
+      ...(token ? { token_hash: hash(token) } : {}),
+    },
   });
   if (error) return { error: safeDatabaseError(error) };
   revalidatePath("/admin");
@@ -50,8 +59,7 @@ const deleteTestSchema = z.object({
 
 export async function deleteTestRegistration(raw: unknown) {
   const { client } = await requireAdmin();
-  if (deploymentMode() !== "test")
-    return { error: "Only test registrations can be deleted." };
+  if (deploymentMode() !== "test") return { error: "Only test registrations can be deleted." };
   const parsed = deleteTestSchema.safeParse(raw);
   if (!parsed.success)
     return { error: "Enter the exact reference and confirm no payment was received." };

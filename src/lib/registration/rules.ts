@@ -17,17 +17,15 @@ export function registrationAvailability(settings: OperationalSettings | null, n
     return "The organizer is finalizing the registration dates.";
   return null;
 }
-export function canEdit(status: RegistrationStatus, deadline: string | null, now = new Date()) {
-  return (
-    status === "correction_required" ||
-    (status === "submitted" && (!deadline || now < new Date(deadline)))
-  );
+export function canEdit(status: RegistrationStatus, correctionApprovedAt: string | null) {
+  return status === "correction_required" && !!correctionApprovedAt;
 }
 export function permittedAction(
   action: AdminAction,
   payment: PaymentStatus,
   registration: RegistrationStatus,
   refund: RefundStatus,
+  correctionApprovedAt: string | null = null,
 ) {
   switch (action) {
     case "payment_received":
@@ -35,15 +33,11 @@ export function permittedAction(
     case "reject_payment":
       return payment !== "confirmed" && registration !== "approved" && registration !== "rejected";
     case "approve":
-      return (
-        payment === "confirmed" &&
-        refund === "none" &&
-        ["awaiting_screening", "correction_required"].includes(registration)
-      );
+      return payment === "confirmed" && refund === "none" && registration === "awaiting_screening";
     case "reject":
       return !["rejected", "approved"].includes(registration);
     case "request_correction":
-      return !["rejected", "approved"].includes(registration);
+      return !["rejected", "approved"].includes(registration) && !correctionApprovedAt;
     case "refund":
       return payment === "confirmed" && registration === "rejected" && refund === "pending";
     default:

@@ -52,8 +52,9 @@ export async function signUpManager(input: unknown) {
       ...parsed.data,
       options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
     });
-    if (error) return { error: emailAuthError(error, "signup") };
+    if (error) return { error: emailAuthError(error, "signup"), retryAfterSeconds: 60 };
     return {
+      retryAfterSeconds: 60,
       message:
         "If this email needs confirmation, check your inbox and spam folder for a link. Already confirmed your email? Sign in or reset your password; creating the account again will not send another confirmation.",
     };
@@ -77,14 +78,16 @@ export async function resendManagerConfirmation(rawEmail: string) {
       email: parsed.data,
       options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
     });
-    if (error) return { error: emailAuthError(error, "resend") };
+    if (error) return { error: emailAuthError(error, "resend"), retryAfterSeconds: 60 };
     return {
+      retryAfterSeconds: 60,
       message:
         "If this email has an account awaiting confirmation, a new link has been requested. Check your inbox and spam folder, and wait a minute before requesting another. Already confirmed? Sign in or reset your password.",
     };
   } catch {
     return {
       error: "Unable to request another link right now. Please wait a minute and try again.",
+      retryAfterSeconds: 60,
     };
   }
 }
@@ -140,15 +143,49 @@ export async function updateManagerPassword(rawPassword: string) {
   )
     return { error: "Use a password of at least 8 characters." };
   try {
-    await rateLimit("manager-password-update", 5, 900);
     const client = await authClient();
     const {
       data: { user },
+      error: identityError,
     } = await client.auth.getUser();
-    if (!user?.email || !user.email_confirmed_at)
+    if (identityError || !user?.email || !user.email_confirmed_at)
       return { error: "Open the password-reset link from your email again." };
+    await rateLimit(`manager-password-update:${user.id}`, 5, 900);
     const { error } = await client.auth.updateUser({ password: rawPassword });
-    if (error) return { error: "Unable to change the password. Try another password." };
+    if (error) {
+      console.error("Team password update failed", { code: error.code, status: error.status });
+      if (error.code === "same_password")
+        return { error: "Choose a new password that is different from your current password." };
+      if (error.code === "weak_password") {
+        if ("reasons" in error && Array.isArray(error.reasons) && error.reasons.includes("pwned"))
+          return {
+            error: "This password has appeared in a data breach. Choose a different password.",
+          };
+        return {
+          error:
+            "This password does not meet the security requirements. Choose a longer password with uppercase and lowercase letters, numbers and symbols.",
+        };
+      }
+      if (
+        [
+          "reauthentication_needed",
+          "reauthentication_not_valid",
+          "session_not_found",
+          "session_expired",
+          "refresh_token_not_found",
+          "bad_jwt",
+        ].includes(error.code ?? "")
+      )
+        return {
+          error: "Request a new password-reset link and open the latest email to try again.",
+        };
+      if (error.status === 429)
+        return { error: "Too many password-change attempts. Please wait a while and try again." };
+      return {
+        error:
+          "Unable to change your password right now. Request a new reset link or try again later.",
+      };
+    }
     return { url: "/team" };
   } catch {
     return { error: "Unable to change the password right now. Please try again." };

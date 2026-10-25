@@ -40,7 +40,7 @@ export const teamFieldsSchema = z.object({
     .union([z.literal(""), z.email("Enter a valid email address.")])
     .nullish()
     .transform((v) => v || null),
-  location: z.string().trim().min(2, "Enter your town or local government area.").max(120),
+  location: z.string().trim().min(2, "Select your local government area.").max(120),
   additional_information: z
     .string()
     .trim()
@@ -50,20 +50,22 @@ export const teamFieldsSchema = z.object({
 });
 export const registrationSchema = teamFieldsSchema.extend({
   accepted_rules: z.literal(true, {
-    error: "Please accept the registration rules and refund policy.",
+    error: "Please accept the registration rules, correction fee and refund policy.",
   }),
   website: z.string().max(0, "Unable to submit this registration."),
 });
 export type RegistrationInput = z.input<typeof registrationSchema>;
-export const registrationDraftSchema = z.object({
-  team_name: z.string().max(80),
-  location: z.string().max(120),
-  manager_name: z.string().max(100),
-  phone: z.string().max(24).optional().default(""),
-  whatsapp_number: z.string().max(24),
-  email: z.string().max(254),
-  additional_information: z.string().max(1000),
-}).strict();
+export const registrationDraftSchema = z
+  .object({
+    team_name: z.string().max(80),
+    location: z.string().max(120),
+    manager_name: z.string().max(100),
+    phone: z.string().max(24).optional().default(""),
+    whatsapp_number: z.string().max(24),
+    email: z.string().max(254),
+    additional_information: z.string().max(1000),
+  })
+  .strict();
 export type RegistrationDraft = z.infer<typeof registrationDraftSchema>;
 export const referenceSchema = z.string().regex(/^[A-Z0-9-]{5,40}$/);
 export const accessTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
@@ -81,6 +83,7 @@ export const adminActionSchema = z.object({
   ]),
   reason: z.string().trim().max(2000),
   screening_passed: z.boolean().optional(),
+  correction_payment_received: z.boolean().optional(),
   transfer_reference: z.string().trim().max(120).optional(),
   refunded_at: z.iso.datetime().optional(),
 });

@@ -42,7 +42,7 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
   const payment = row.payments[0];
   const { data: audit, error: auditError } = await client
     .from("admin_audit_logs")
-    .select("id,action,admin_id,reason,created_at")
+    .select("id,action,admin_id,reason,created_at,new_value")
     .eq("registration_id", id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -140,6 +140,13 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
                       : "Team manager / submission"}
                   </small>
                   {entry.reason && <p>{entry.reason}</p>}
+                  {entry.action === "request_correction" &&
+                    entry.new_value?.correction_fee_amount && (
+                      <p className="small muted">
+                        Correction fee verified: {money(entry.new_value.correction_fee_amount)}. One
+                        correction submission approved.
+                      </p>
+                    )}
                 </li>
               ))}
             </ul>
@@ -150,7 +157,8 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
             <h3>Organizer actions</h3>
             <p className="hint" style={{ marginBottom: 22 }}>
               Payment received provisionally books a place. Approve only after the team and players
-              pass physical screening after the registration deadline.
+              pass physical screening after the registration deadline. Verify the separate ₦2,000
+              correction fee before approving edit access.
             </p>
             <RegistrationActions
               id={id}
@@ -159,6 +167,7 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
               refund={row.refund_status}
               notes={row.admin_notes}
               hasManagerAccount={!!row.manager_user_id}
+              correctionApprovedAt={row.correction_approved_at}
             />
             {deploymentMode() === "test" && (
               <div className="record-delete-detail">

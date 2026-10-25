@@ -9,7 +9,7 @@ import {
   registrationDraftSchema,
 } from "@/lib/validations/registration";
 import { getSettings, hasDatabase, paymentConfigured, deploymentMode } from "@/lib/config/server";
-import { registrationAvailability } from "@/lib/registration/rules";
+import { canEdit, registrationAvailability } from "@/lib/registration/rules";
 import { serviceClient } from "@/lib/supabase/service";
 import {
   ownerRegistration,
@@ -151,6 +151,8 @@ export async function correctTeam(reference: string, raw: unknown) {
   if (!parsed.success) return { error: "Please check the form details." };
   const row = await ownerRegistration(reference);
   if (!row) return { error: "Sign in to access this team." };
+  if (!canEdit(row.registration_status, row.correction_approved_at))
+    return { error: safeDatabaseError({ message: "editing_locked" }) };
   try {
     await rateLimit(`correction:${row.id}`, 15);
     const identity = row.accessMode === "manager" ? await managerIdentity() : null;

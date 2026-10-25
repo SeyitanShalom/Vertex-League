@@ -6,7 +6,7 @@ import { managerIdentity } from "@/lib/auth";
 import { ManagerSignIn } from "@/components/registration/manager-sign-in";
 
 export const metadata: Metadata = {
-  title: "Manager sign-in",
+  title: "Team sign-in",
   robots: { index: false, follow: false },
 };
 export default async function ManagerSignInPage() {

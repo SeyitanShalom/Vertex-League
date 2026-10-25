@@ -7,7 +7,7 @@ import { managerIdentity } from "@/lib/auth";
 import type { PublicRegistration, Registration } from "@/types/domain";
 
 export const registrationColumns =
-  "id,mode,team_id,manager_user_id,registration_reference,registration_status,registration_fee,currency,submitted_at,approved_at,rejected_at,public_message,refund_status,screening_passed_at,teams(id,team_name,manager_name,phone,whatsapp_number,email,location,logo_path,additional_information),payments(id,amount,payment_status,verified_at),refunds(amount,refunded_at,transfer_reference)";
+  "id,mode,team_id,manager_user_id,registration_reference,registration_status,correction_approved_at,registration_fee,currency,submitted_at,approved_at,rejected_at,public_message,refund_status,screening_passed_at,teams(id,team_name,manager_name,phone,whatsapp_number,email,location,logo_path,additional_information),payments(id,amount,payment_status,verified_at),refunds(amount,refunded_at,transfer_reference)";
 export async function managerRegistrationReference(userId: string) {
   if (!hasDatabase()) return null;
   const { data, error } = await serviceClient()
@@ -63,6 +63,7 @@ export async function ownerRegistration(
     team_id: row.team_id,
     registration_reference: row.registration_reference,
     registration_status: row.registration_status,
+    correction_approved_at: row.correction_approved_at ?? null,
     registration_fee: row.registration_fee,
     currency: row.currency,
     submitted_at: row.submitted_at,
@@ -86,7 +87,10 @@ export function safeDatabaseError(error: { code?: string; message?: string }) {
     deadline_passed: "The registration deadline has passed.",
     capacity_reached:
       "All available places are currently booked. Please contact the organizer before paying.",
-    editing_locked: "Editing is locked. Please ask the organizer to enable corrections.",
+    editing_locked:
+      "Editing is locked. Contact the organizer on WhatsApp to pay the additional ₦2,000 correction fee and request approval.",
+    correction_payment_required:
+      "Confirm receipt of the additional ₦2,000 correction fee before approving edits.",
     screening_and_payment_required:
       "Confirm payment and physical screening before approving the team.",
     screening_after_deadline:

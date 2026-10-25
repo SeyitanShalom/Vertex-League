@@ -20,7 +20,7 @@ test("homepage email tokens redirect privately to the confirmation verifier", as
   }
 });
 
-test("landing page, navigation and manager sign-in", async ({ page }, info) => {
+test("landing page, navigation and team sign-in", async ({ page }, info) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -63,8 +63,9 @@ test("landing page, navigation and manager sign-in", async ({ page }, info) => {
   await page.screenshot({ path: `test-results/vertex-${info.project.name}.png`, fullPage: true });
   expect(errors).toEqual([]);
 });
-test("manager account and password screens fit on small viewports", async ({ page }, info) => {
+test("team account and password screens fit on small viewports", async ({ page }, info) => {
   test.setTimeout(120_000);
+  await page.clock.install();
   if (info.project.name === "mobile") await page.setViewportSize({ width: 320, height: 700 });
   await page.goto("/manager/sign-in");
   await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
@@ -72,10 +73,13 @@ test("manager account and password screens fit on small viewports", async ({ pag
   await expect(page.getByRole("heading", { name: "Create your account." })).toBeVisible();
   await expect(page.getByLabel("Email address")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Confirm password")).toBeVisible();
+  await expect(page.getByLabel("Confirm password", { exact: true })).toBeVisible();
   const resend = page.getByRole("button", { name: "Resend confirmation email" });
   await expect(resend).toBeDisabled();
   await page.getByLabel("Email address").fill("not-an-email");
+  await expect(resend).toBeDisabled();
+  await page.clock.fastForward(60_000);
+  await expect(resend).toBeEnabled();
   await resend.click();
   await expect(page.locator(".auth-panel").getByRole("alert")).toContainText(
     "Enter a valid email address above.",
@@ -90,6 +94,63 @@ test("manager account and password screens fit on small viewports", async ({ pag
   await expect(page.getByRole("heading", { name: "Reset your password." })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+test("confirmation resend waits a full minute before becoming active", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-10-25T10:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-25T10:01:00Z"));
+  await page.goto("/manager/sign-in");
+  const resend = page.getByRole("button", { name: /Resend confirmation email/ });
+  await page.getByLabel("Email address").fill("team@example.com");
+  await expect(resend).toHaveText("Resend confirmation email in 60s");
+  await expect(resend).toBeDisabled();
+  await page.clock.fastForward(59_000);
+  await expect(resend).toHaveText("Resend confirmation email in 1s");
+  await expect(resend).toBeDisabled();
+  await page.clock.fastForward(1_000);
+  await expect(resend).toHaveText("Resend confirmation email");
+  await expect(resend).toBeEnabled();
+  await page.locator(".auth-mode button").filter({ hasText: "Create account" }).click();
+  await expect(resend).toBeEnabled();
+  await page.getByLabel("Email address").clear();
+  await expect(resend).toBeDisabled();
+});
+
+test("password visibility controls preserve values without submitting", async ({ page }) => {
+  await page.goto("/manager/sign-in");
+  await expect(page.locator(".auth-panel .eyebrow")).toHaveText("TEAM ACCOUNT");
+  await expect(page).toHaveTitle(/Team sign-in/);
+  const password = page.getByLabel("Password", { exact: true });
+  await password.fill("Example-password-123");
+  await expect(password).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Show password", exact: true }).click();
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(password).toHaveValue("Example-password-123");
+  await page.getByRole("button", { name: "Hide password", exact: true }).press("Space");
+  await expect(password).toHaveAttribute("type", "password");
+
+  await page.locator(".auth-mode button").filter({ hasText: "Create account" }).click();
+  const confirmation = page.getByLabel("Confirm password", { exact: true });
+  await confirmation.fill("Example-password-123");
+  await page.getByRole("button", { name: "Show confirm password", exact: true }).click();
+  await expect(confirmation).toHaveAttribute("type", "text");
+  await expect(password).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Show password", exact: true }).click();
+  await page.getByRole("button", { name: "Hide confirm password", exact: true }).click();
+  await expect(confirmation).toHaveAttribute("type", "password");
+  await expect(confirmation).toHaveValue("Example-password-123");
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(page.getByRole("heading", { name: "Create your account." })).toBeVisible();
+
+  await page.goto("/admin/login");
+  const adminPassword = page.getByLabel("Password", { exact: true });
+  await adminPassword.fill("Example-password-456");
+  await page.getByRole("button", { name: "Show password", exact: true }).click();
+  await expect(adminPassword).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Hide password", exact: true }).click();
+  await expect(adminPassword).toHaveAttribute("type", "password");
+  await expect(adminPassword).toHaveValue("Example-password-456");
+  await expect(page).toHaveURL(/\/admin\/login$/);
+});
+
 test("private pages and administrator endpoints reject unauthorized access", async ({
   page,
   request,

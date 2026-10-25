@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CircleCheck, Circle, ArrowUpRight } from "lucide-react";
 import { ownerRegistration } from "@/lib/registration/data";
-import { getSettings, operationalContact } from "@/lib/config/server";
+import { operationalContact } from "@/lib/config/server";
 import { canEdit } from "@/lib/registration/rules";
 import { privateLink, readAccess } from "@/lib/security";
 import { whatsappLink } from "@/lib/whatsapp";
@@ -12,7 +12,7 @@ import { AccessRequired, PageIntro, Notice } from "@/components/shared";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { SaveAccess, RefreshStatus } from "@/components/registration/private-tools";
-import { TeamForm } from "@/components/registration/team-form";
+import { TeamCorrections } from "@/components/registration/team-corrections";
 import { signOutManager } from "@/app/actions/manager-auth";
 import { managerIdentity } from "@/lib/auth";
 export const metadata: Metadata = {
@@ -28,11 +28,10 @@ export default async function RegistrationPage({
   const row = await ownerRegistration(reference);
   if (!row) return <AccessRequired />;
   const identity = row.accessMode === "manager" ? await managerIdentity() : null;
-  const settings = await getSettings();
   const token = row.accessMode === "legacy" ? await readAccess(reference) : null;
   const contact = operationalContact();
   const payment = row.payments[0];
-  const editable = canEdit(row.registration_status, settings?.registration_deadline ?? null);
+  const editable = canEdit(row.registration_status, row.correction_approved_at);
   const chat = whatsappLink(
     contact.whatsapp,
     `Hello, I need help with my Vertex League registration.\nReference: ${reference}\nTeam: ${row.teams.team_name}`,
@@ -48,7 +47,9 @@ export default async function RegistrationPage({
         : row.registration_status === "approved"
           ? "Congratulations! Your team passed physical screening and is approved for Vertex League."
           : row.registration_status === "correction_required"
-            ? "The organizer has requested corrections. Review the instructions below and update your team details."
+            ? editable
+              ? "Your correction payment has been verified and the organizer has approved one correction submission. Review the instructions below."
+              : "Contact the organizer on WhatsApp to arrange the correction fee and request approval before editing."
             : row.registration_status === "rejected"
               ? "Your registration requires attention. Please contact the organizer for details."
               : payment?.payment_status === "confirmed"
@@ -66,7 +67,9 @@ export default async function RegistrationPage({
       {token && <SaveAccess reference={reference} link={privateLink(reference, token)} />}
       {row.accessMode === "manager" && (
         <form action={signOutManager} style={{ marginBottom: 18 }}>
-          <Button type="submit" variant="outline">Sign out</Button>
+          <Button type="submit" variant="outline">
+            Sign out
+          </Button>
         </form>
       )}
       <Notice
@@ -151,22 +154,14 @@ export default async function RegistrationPage({
               </dl>
             </section>
           )}
-          {editable ? (
-            <section className="panel">
-              <TeamForm
-                existing={{ reference, team: row.teams }}
-                verifiedEmail={identity?.email}
-              />
-            </section>
-          ) : (
-            <section className="panel">
-              <h3>Need to correct your details?</h3>
-              <p className="small muted">
-                Contact the organizer using this registration reference. The organizer can enable
-                corrections when appropriate.
-              </p>
-            </section>
-          )}
+          <TeamCorrections
+            reference={reference}
+            team={row.teams}
+            status={row.registration_status}
+            correctionApprovedAt={row.correction_approved_at}
+            verifiedEmail={identity?.email}
+            whatsapp={contact.whatsapp}
+          />
         </div>
         <aside>
           <section className="panel">

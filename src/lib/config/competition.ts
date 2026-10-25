@@ -1,3 +1,5 @@
+import { TEAM_CORRECTION_POLICY } from "@/lib/registration/corrections";
+
 // Organizer-supplied facts only. Dates, eligibility rules and assets can be added here.
 export const competition = {
   name: "Vertex League",
@@ -6,6 +8,7 @@ export const competition = {
   allowInternationalPhones: false,
   rules: [
     "One team per manager. Each team may register only once.",
+    TEAM_CORRECTION_POLICY,
     "Save your team details first, then use the bank details on your payment page to make a transfer. Send your receipt and team logo to the organizer on WhatsApp.",
     "Your place is provisionally booked after the organizer confirms payment.",
     "Teams and players must attend physical eligibility screening after the registration deadline.",
@@ -48,7 +51,7 @@ export const competition = {
     {
       question: "Can I correct my details or send another receipt?",
       answer:
-        "Sign in to make permitted corrections. If editing is locked, contact the organizer to request a correction. You can resend proof on WhatsApp using the same reference.",
+        "Corrections after submission cost an additional ₦2,000 per request. Use Contact the organizer on your team page to arrange payment on WhatsApp. Editing opens only after the organizer verifies the correction fee and approves one correction submission, then locks again when you save. You can resend registration payment proof on WhatsApp using the same reference.",
     },
     {
       question: "How do I recover my registration?",

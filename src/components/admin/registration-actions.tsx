@@ -9,12 +9,14 @@ import { Input, Textarea } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Notice } from "@/components/shared";
 import { CopyButton } from "@/components/registration/private-tools";
+import { TEAM_CORRECTION_FEE } from "@/lib/registration/corrections";
+import { money } from "@/lib/utils";
 const labels: Record<AdminAction, string> = {
   payment_received: "Payment received",
   reject_payment: "Reject payment",
   approve: "Approve team",
   reject: "Reject registration",
-  request_correction: "Request corrections",
+  request_correction: "Approve paid corrections",
   notes: "Save internal notes",
   refund: "Record full refund",
   recover_access: "Replace private access link",
@@ -26,6 +28,7 @@ export function RegistrationActions({
   refund,
   notes,
   hasManagerAccount,
+  correctionApprovedAt,
 }: {
   id: string;
   payment: PaymentStatus;
@@ -33,6 +36,7 @@ export function RegistrationActions({
   refund: RefundStatus;
   notes: string;
   hasManagerAccount: boolean;
+  correctionApprovedAt: string | null;
 }) {
   const [selected, setSelected] = useState<AdminAction | null>(null);
   const [reason, setReason] = useState("");
@@ -56,7 +60,9 @@ export function RegistrationActions({
   async function confirm() {
     if (!selected) return;
     if (
-      ["payment_received", "approve", "refund", "recover_access"].includes(selected) &&
+      ["payment_received", "approve", "refund", "recover_access", "request_correction"].includes(
+        selected,
+      ) &&
       !checked
     ) {
       setDialogError("Confirm the statement before continuing.");
@@ -81,6 +87,7 @@ export function RegistrationActions({
         action: selected,
         reason,
         screening_passed: selected === "approve" && checked,
+        ...(selected === "request_correction" ? { correction_payment_received: checked } : {}),
         ...(selected === "refund"
           ? { transfer_reference: transfer, refunded_at: new Date(refundDate).toISOString() }
           : {}),
@@ -112,22 +119,24 @@ export function RegistrationActions({
             "notes",
             "recover_access",
           ] as AdminAction[]
-        ).filter((action) => action !== "recover_access" || !hasManagerAccount).map((action) => (
-          <Button
-            key={action}
-            disabled={!permittedAction(action, payment, status, refund)}
-            variant={
-              action === "payment_received" || action === "approve"
-                ? "default"
-                : action === "reject" || action === "reject_payment"
-                  ? "destructive"
-                  : "outline"
-            }
-            onClick={() => open(action)}
-          >
-            {labels[action]}
-          </Button>
-        ))}
+        )
+          .filter((action) => action !== "recover_access" || !hasManagerAccount)
+          .map((action) => (
+            <Button
+              key={action}
+              disabled={!permittedAction(action, payment, status, refund, correctionApprovedAt)}
+              variant={
+                action === "payment_received" || action === "approve"
+                  ? "default"
+                  : action === "reject" || action === "reject_payment"
+                    ? "destructive"
+                    : "outline"
+              }
+              onClick={() => open(action)}
+            >
+              {labels[action]}
+            </Button>
+          ))}
       </div>
       {result.error && <Notice tone="error">{result.error}</Notice>}
       {result.success && (
@@ -159,8 +168,10 @@ export function RegistrationActions({
       >
         {selected === "request_correction" && (
           <Notice>
-            The correction instructions below will be visible to the team. Other action reasons and
-            internal notes stay private.
+            Verify the separate {money(TEAM_CORRECTION_FEE)} correction-fee payment before
+            approving. This unlocks one correction submission; saving locks the form again. The
+            instructions below will be visible to the team. Registration payment and screening
+            remain separate.
           </Notice>
         )}
         {selected === "refund" && (
@@ -201,7 +212,9 @@ export function RegistrationActions({
             onChange={(e) => setReason(e.target.value)}
           />
         </label>
-        {["payment_received", "approve", "refund", "recover_access"].includes(selected ?? "") && (
+        {["payment_received", "approve", "refund", "recover_access", "request_correction"].includes(
+          selected ?? "",
+        ) && (
           <label className="checkbox-row">
             <input
               type="checkbox"
@@ -215,7 +228,9 @@ export function RegistrationActions({
                   ? "This team and its players attended physical screening and passed every eligibility requirement."
                   : selected === "refund"
                     ? "I have returned the full registration fee to this team, with no deductions."
-                    : "I have verified the manager’s identity. Replacing the link will revoke the previous link."}
+                    : selected === "request_correction"
+                      ? `I have verified receipt of the additional ${money(TEAM_CORRECTION_FEE)} correction fee and approve one correction submission.`
+                      : "I have verified the manager’s identity. Replacing the link will revoke the previous link."}
             </span>
           </label>
         )}

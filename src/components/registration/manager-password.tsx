@@ -6,6 +6,7 @@ import { ArrowRight, LockKeyhole } from "lucide-react";
 import { requestManagerPasswordReset, updateManagerPassword } from "@/app/actions/manager-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Notice } from "@/components/shared";
 
 export function ManagerPassword({ mode }: { mode: "request" | "update" }) {
@@ -44,25 +45,46 @@ export function ManagerPassword({ mode }: { mode: "request" | "update" }) {
       }}
     >
       <LockKeyhole size={28} style={{ color: "var(--accent)" }} />
-      <p className="eyebrow">MANAGER ACCOUNT</p>
+      <p className="eyebrow">TEAM ACCOUNT</p>
       <h1>{mode === "request" ? "Reset your password." : "Choose a new password."}</h1>
-      <label className="field">
-        <span>{mode === "request" ? "Email address" : "New password"}</span>
-        <Input
-          type={mode === "request" ? "email" : "password"}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          autoComplete={mode === "request" ? "email" : "new-password"}
-          minLength={mode === "update" ? 8 : undefined}
-          maxLength={mode === "request" ? 254 : 256}
-          required
-        />
-      </label>
-      {mode === "update" && (
-        <label className="field">
-          <span>Confirm new password</span>
+      <div className="field">
+        <label htmlFor="team-password-reset">
+          {mode === "request" ? "Email address" : "New password"}
+        </label>
+        {mode === "request" ? (
           <Input
-            type="password"
+            id="team-password-reset"
+            type="email"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            autoComplete="email"
+            maxLength={254}
+            required
+          />
+        ) : (
+          <PasswordInput
+            id="team-password-reset"
+            visibilityLabel="new password"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={256}
+            required
+          />
+        )}
+      </div>
+      {mode === "update" && (
+        <p className="hint">
+          Use at least 8 characters and choose a password different from your current one.
+        </p>
+      )}
+      {mode === "update" && (
+        <div className="field">
+          <label htmlFor="team-password-reset-confirmation">Confirm new password</label>
+          <PasswordInput
+            id="team-password-reset-confirmation"
+            visibilityLabel="confirm new password"
             value={confirmation}
             onChange={(event) => setConfirmation(event.target.value)}
             autoComplete="new-password"
@@ -70,7 +92,7 @@ export function ManagerPassword({ mode }: { mode: "request" | "update" }) {
             maxLength={256}
             required
           />
-        </label>
+        </div>
       )}
       {feedback.error && <Notice tone="error">{feedback.error}</Notice>}
       {feedback.message && <Notice tone="success">{feedback.message}</Notice>}

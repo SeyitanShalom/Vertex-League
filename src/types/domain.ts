@@ -30,6 +30,7 @@ export interface Registration {
   team_id: string;
   registration_reference: string;
   registration_status: RegistrationStatus;
+  correction_approved_at: string | null;
   registration_fee: number | string;
   currency: string;
   submitted_at: string;

@@ -19,6 +19,8 @@ import type { Team } from "@/types/domain";
 import type { RegistrationDraft } from "@/lib/validations/registration";
 import { createDraftAutosave, type DraftSaveStatus } from "@/lib/registration/draft-autosave";
 import { REGISTRATION_DEADLINE_PASSED } from "@/lib/registration/rules";
+import { ondoLocalGovernments } from "@/lib/registration/locations";
+import { TEAM_CORRECTION_POLICY } from "@/lib/registration/corrections";
 import {
   RegistrationCountdown,
   useRegistrationCountdown,
@@ -48,8 +50,8 @@ const fields: {
   },
   {
     name: "location",
-    label: "Team location",
-    placeholder: "Town or local government area",
+    label: "Local government area",
+    placeholder: "Select your local government area",
     autoComplete: "address-level2",
   },
   {
@@ -90,6 +92,11 @@ export function TeamForm({
   deadlineLabel?: string | null;
 }) {
   const router = useRouter();
+  const savedLocation = existing?.team.location ?? draft?.location ?? "";
+  const legacyLocation =
+    savedLocation && !ondoLocalGovernments.some((location) => location === savedLocation)
+      ? savedLocation
+      : null;
   const submissionKey = useRef<string | null>(null);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState<{ error?: string; success?: string }>({});
@@ -112,7 +119,7 @@ export function TeamForm({
     resolver: zodResolver(schema),
     defaultValues: {
       team_name: existing?.team.team_name ?? draft?.team_name ?? "",
-      location: existing?.team.location ?? draft?.location ?? "",
+      location: savedLocation,
       manager_name: existing?.team.manager_name ?? draft?.manager_name ?? "",
       phone: existing?.team.phone ?? draft?.phone ?? "",
       whatsapp_number: existing?.team.whatsapp_number ?? draft?.whatsapp_number ?? "",
@@ -192,6 +199,11 @@ export function TeamForm({
       className="registration-form"
     >
       {currentDisabledReason && <Notice>{currentDisabledReason}</Notice>}
+      {!existing && (
+        <Notice>
+          Check your team details carefully before submitting. {TEAM_CORRECTION_POLICY}
+        </Notice>
+      )}
       {!existing && deadline && deadlineLabel && (
         <RegistrationCountdown
           deadline={deadline}
@@ -219,19 +231,41 @@ export function TeamForm({
               {field.label}
               {(field.name !== "email" || !!verifiedEmail) && " *"}
             </label>
-            <Input
-              id={field.name}
-              type={field.type ?? "text"}
-              placeholder={field.placeholder}
-              autoComplete={field.autoComplete}
-              maxLength={field.name === "email" ? 254 : field.type === "tel" ? 24 : 120}
-              readOnly={field.name === "email" && !!verifiedEmail}
-              aria-invalid={!!form.formState.errors[field.name]}
-              aria-describedby={
-                form.formState.errors[field.name] ? `${field.name}-error` : undefined
-              }
-              {...form.register(field.name)}
-            />
+            {field.name === "location" ? (
+              <select
+                id={field.name}
+                className="input"
+                autoComplete={field.autoComplete}
+                required
+                aria-invalid={!!form.formState.errors.location}
+                aria-describedby={form.formState.errors.location ? "location-error" : undefined}
+                {...form.register("location")}
+              >
+                <option value="" disabled>
+                  {field.placeholder}
+                </option>
+                {legacyLocation && <option value={legacyLocation}>{legacyLocation}</option>}
+                {ondoLocalGovernments.map((location) => (
+                  <option key={location} value={location}>
+                    {location}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id={field.name}
+                type={field.type ?? "text"}
+                placeholder={field.placeholder}
+                autoComplete={field.autoComplete}
+                maxLength={field.name === "email" ? 254 : field.type === "tel" ? 24 : 120}
+                readOnly={field.name === "email" && !!verifiedEmail}
+                aria-invalid={!!form.formState.errors[field.name]}
+                aria-describedby={
+                  form.formState.errors[field.name] ? `${field.name}-error` : undefined
+                }
+                {...form.register(field.name)}
+              />
+            )}
             {form.formState.errors[field.name] && (
               <span id={`${field.name}-error`} className="field-error">
                 {form.formState.errors[field.name]?.message}
@@ -280,7 +314,7 @@ export function TeamForm({
               <span>
                 I agree to the{" "}
                 <Link href="/#rules" target="_blank">
-                  registration rules and full-refund policy
+                  registration rules, correction fee and full-refund policy
                 </Link>
                 . I understand payment books a provisional place, and final approval follows
                 physical screening.

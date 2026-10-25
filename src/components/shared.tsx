@@ -41,7 +41,7 @@ export function AccessRequired() {
     <section className="container narrow page-space">
       <div className="empty-state">
         <ShieldCheck size={40} />
-        <p className="eyebrow">MANAGER ACCESS</p>
+        <p className="eyebrow">TEAM ACCESS</p>
         <h1>Sign in to view your team.</h1>
         <p>Use the email account linked to your registration.</p>
         <Button asChild>

@@ -69,6 +69,14 @@ async function action(
     JSON.stringify(details),
   ]);
 }
+async function approveCorrections(id: string) {
+  await authenticate();
+  await action(id, "request_correction", "Correct your team details", {
+    correction_payment_received: true,
+    correction_fee_amount: 2000,
+  });
+  await db.exec("reset role;");
+}
 beforeAll(async () => {
   db = new PGlite();
   await db.waitReady;
@@ -100,6 +108,240 @@ beforeEach(async () => {
 afterEach(async () => {
   await db.exec("rollback; reset role;");
 });
+describe("paid team corrections", () => {
+  it("blocks a newly submitted team from editing before payment and organizer approval", async () => {
+    const saved = await register();
+    await expect(
+      db.query("select public.correct_team_registration($1,$2,$3)", [
+        saved.id,
+        tokenHash,
+        { ...team, location: "Akure South" },
+      ]),
+    ).rejects.toThrow("editing_locked");
+  });
+
+  it("blocks account-owned registrations from editing without paid approval", async () => {
+    const saved = await registerManager();
+    await expect(
+      db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
+        saved.id,
+        manager,
+        JSON.stringify({ ...managerTeam, location: "Akure South" }),
+      ]),
+    ).rejects.toThrow("editing_locked");
+  });
+
+  it("does not treat an older correction request as verified correction payment", async () => {
+    const saved = await register();
+    await db.query(
+      "update public.registrations set registration_status='correction_required' where id=$1",
+      [saved.id],
+    );
+    await expect(
+      db.query("select public.correct_team_registration($1,$2,$3)", [saved.id, tokenHash, team]),
+    ).rejects.toThrow("editing_locked");
+  });
+
+  it.each([
+    {},
+    { correction_payment_received: false, correction_fee_amount: 2000 },
+    { correction_payment_received: true, correction_fee_amount: 100 },
+  ])(
+    "refuses organizer approval without verification of the full correction fee: %j",
+    async (details) => {
+      const saved = await register();
+      await authenticate();
+      await expect(
+        action(saved.id, "request_correction", "Correct team name", details),
+      ).rejects.toThrow("correction_payment_required");
+    },
+  );
+
+  it.each([
+    [outsider, "aal2"],
+    [admin, "aal1"],
+  ])("requires an organizer with MFA for paid correction approval", async (userId, aal) => {
+    const saved = await register();
+    await authenticate(userId, aal);
+    await expect(
+      action(saved.id, "request_correction", "Correct team name", {
+        correction_payment_received: true,
+        correction_fee_amount: 2000,
+      }),
+    ).rejects.toThrow("access_denied");
+  });
+
+  it("audits the separate correction fee without confirming or changing registration payment", async () => {
+    const saved = await register();
+    await approveCorrections(saved.id);
+    const result = await db.query<{
+      registration_status: string;
+      approved: boolean;
+      payment_status: string;
+      amount: string;
+    }>(
+      "select r.registration_status,r.correction_approved_at is not null approved,p.payment_status,p.amount from public.registrations r join public.payments p on p.registration_id=r.id and p.is_current where r.id=$1",
+      [saved.id],
+    );
+    expect(result.rows[0].registration_status).toBe("correction_required");
+    expect(result.rows[0].approved).toBe(true);
+    expect(result.rows[0].payment_status).toBe("pending");
+    expect(Number(result.rows[0].amount)).toBe(100);
+    const audit = await db.query<{
+      admin_id: string;
+      new_value: { correction_fee_amount: number; correction_payment_verified: boolean };
+    }>(
+      "select admin_id,new_value from public.admin_audit_logs where registration_id=$1 and action='request_correction'",
+      [saved.id],
+    );
+    expect(audit.rows[0].admin_id).toBe(admin);
+    expect(audit.rows[0].new_value.correction_fee_amount).toBe(2000);
+    expect(audit.rows[0].new_value.correction_payment_verified).toBe(true);
+  });
+
+  it.each([false, true])(
+    "consumes a paid approval once and restores the registration state (registration paid: %s)",
+    async (registrationPaid) => {
+      const saved = await register();
+      if (registrationPaid) {
+        await authenticate();
+        await action(saved.id, "payment_received");
+        await db.exec("reset role;");
+      }
+      await approveCorrections(saved.id);
+      await db.query("select public.correct_team_registration($1,$2,$3)", [
+        saved.id,
+        tokenHash,
+        { ...team, location: "Akure South" },
+      ]);
+      const result = await db.query<{
+        registration_status: string;
+        correction_approved_at: string | null;
+        public_message: string | null;
+      }>(
+        "select registration_status,correction_approved_at,public_message from public.registrations where id=$1",
+        [saved.id],
+      );
+      expect(result.rows[0]).toEqual({
+        registration_status: registrationPaid ? "awaiting_screening" : "submitted",
+        correction_approved_at: null,
+        public_message: null,
+      });
+      await expect(
+        db.query("select public.correct_team_registration($1,$2,$3)", [
+          saved.id,
+          tokenHash,
+          { ...team, location: "Owo" },
+        ]),
+      ).rejects.toThrow("editing_locked");
+    },
+  );
+
+  it("preserves the paid approval when invalid corrections fail", async () => {
+    const saved = await register();
+    await approveCorrections(saved.id);
+    await db.exec("savepoint invalid_correction;");
+    await expect(
+      db.query("select public.correct_team_registration($1,$2,$3)", [
+        saved.id,
+        tokenHash,
+        { ...team, team_name: "" },
+      ]),
+    ).rejects.toThrow();
+    await db.exec(
+      "rollback to savepoint invalid_correction; release savepoint invalid_correction;",
+    );
+    const result = await db.query<{ approved: boolean }>(
+      "select correction_approved_at is not null approved from public.registrations where id=$1",
+      [saved.id],
+    );
+    expect(result.rows[0].approved).toBe(true);
+    await db.query("select public.correct_team_registration($1,$2,$3)", [
+      saved.id,
+      tokenHash,
+      { ...team, location: "Owo" },
+    ]);
+  });
+
+  it("preserves paid edit access when the original registration payment is subsequently confirmed", async () => {
+    const saved = await register();
+    await approveCorrections(saved.id);
+    await authenticate();
+    await action(saved.id, "payment_received");
+    await db.exec("reset role;");
+    const result = await db.query<{ registration_status: string; approved: boolean }>(
+      "select registration_status,correction_approved_at is not null approved from public.registrations where id=$1",
+      [saved.id],
+    );
+    expect(result.rows[0]).toEqual({ registration_status: "correction_required", approved: true });
+    await db.query("select public.correct_team_registration($1,$2,$3)", [
+      saved.id,
+      tokenHash,
+      team,
+    ]);
+  });
+
+  it("requires a fresh payment approval for another correction submission", async () => {
+    const saved = await register();
+    await approveCorrections(saved.id);
+    await db.query("select public.correct_team_registration($1,$2,$3)", [
+      saved.id,
+      tokenHash,
+      team,
+    ]);
+    await approveCorrections(saved.id);
+    await db.query("select public.correct_team_registration($1,$2,$3)", [
+      saved.id,
+      tokenHash,
+      { ...team, location: "Owo" },
+    ]);
+    const audit = await db.query<{ count: number }>(
+      "select count(*)::int count from public.admin_audit_logs where registration_id=$1 and action='request_correction'",
+      [saved.id],
+    );
+    expect(audit.rows[0].count).toBe(2);
+  });
+
+  it("prevents duplicate approvals while an approved correction is still open", async () => {
+    const saved = await register();
+    await approveCorrections(saved.id);
+    await authenticate();
+    await expect(
+      action(saved.id, "request_correction", "Another approval", {
+        correction_payment_received: true,
+        correction_fee_amount: 2000,
+      }),
+    ).rejects.toThrow("invalid_transition");
+  });
+
+  it("keeps final screening approval separate until the correction is completed", async () => {
+    const saved = await register();
+    await authenticate();
+    await action(saved.id, "payment_received");
+    await db.exec("reset role;");
+    await approveCorrections(saved.id);
+    await authenticate();
+    await expect(
+      action(saved.id, "approve", "Screening passed", { screening_passed: true }),
+    ).rejects.toThrow("screening_and_payment_required");
+  });
+
+  it.each(["approved", "rejected"])("keeps %s registrations locked", async (status) => {
+    const saved = await register();
+    await db.query("update public.registrations set registration_status=$2 where id=$1", [
+      saved.id,
+      status,
+    ]);
+    await authenticate();
+    await expect(
+      action(saved.id, "request_correction", "Correct team name", {
+        correction_payment_received: true,
+        correction_fee_amount: 2000,
+      }),
+    ).rejects.toThrow("invalid_transition");
+  });
+});
+
 describe("real PostgreSQL registration rules", () => {
   it("restarts at 000001 after the organizer deletes the final test registration", async () => {
     await db.exec("alter sequence public.registration_reference_seq restart with 41");
@@ -209,6 +451,7 @@ describe("real PostgreSQL registration rules", () => {
   });
   it("atomically stores permitted owner corrections", async () => {
     const r = await register();
+    await approveCorrections(r.id);
     await db.query("select public.correct_team_registration($1,$2,$3)", [
       r.id,
       tokenHash,
@@ -525,6 +768,7 @@ describe("manager account ownership", () => {
   });
   it("allows corrections only for the linked account", async () => {
     const saved = await registerManager();
+    await approveCorrections(saved.id);
     await db.query("select public.correct_manager_registration($1,$2,$3::jsonb)", [
       saved.id,
       manager,

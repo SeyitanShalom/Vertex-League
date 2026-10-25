@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Mail } from "lucide-react";
@@ -10,7 +10,10 @@ import {
 } from "@/app/actions/manager-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Notice } from "@/components/shared";
+
+const resendCooldownSeconds = 60;
 
 export function ManagerSignIn({ configured }: { configured: boolean }) {
   const router = useRouter();
@@ -20,14 +23,33 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(resendCooldownSeconds);
+  const resendAvailableAt = useRef<number | null>(null);
   const [feedback, setFeedback] = useState<{ error?: string; message?: string }>({});
+  useEffect(() => {
+    resendAvailableAt.current ??= Date.now() + resendCooldownSeconds * 1000;
+    const timer = window.setInterval(() => {
+      setResendSeconds(
+        Math.max(0, Math.ceil(((resendAvailableAt.current ?? Date.now()) - Date.now()) / 1000)),
+      );
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  function startResendCooldown(seconds: number) {
+    resendAvailableAt.current = Date.now() + seconds * 1000;
+    setResendSeconds(seconds);
+  }
   async function resendConfirmation() {
-    if (busy) return;
+    if (busy || resendSeconds > 0) return;
     setBusy(true);
     setFeedback({});
     try {
-      setFeedback(await resendManagerConfirmation(email));
+      const result = await resendManagerConfirmation(email);
+      setFeedback(result);
+      if ("retryAfterSeconds" in result && result.retryAfterSeconds)
+        startResendCooldown(result.retryAfterSeconds);
     } catch {
+      startResendCooldown(resendCooldownSeconds);
       setFeedback({ error: "Unable to request another link right now. Please try again shortly." });
     } finally {
       setBusy(false);
@@ -47,6 +69,8 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
           ? await signUpManager({ email, password })
           : await signInManager({ email, password });
       setFeedback(result);
+      if ("retryAfterSeconds" in result && result.retryAfterSeconds)
+        startResendCooldown(result.retryAfterSeconds);
       if ("url" in result && result.url) {
         router.replace(result.url);
         router.refresh();
@@ -66,7 +90,7 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
       }}
     >
       <Mail size={28} style={{ color: "var(--accent)" }} />
-      <p className="eyebrow">MANAGER ACCOUNT</p>
+      <p className="eyebrow">TEAM ACCOUNT</p>
       <h1>{mode === "create" ? "Create your account." : "Welcome back."}</h1>
       <div className="auth-mode" role="group" aria-label="Account action">
         <button
@@ -90,7 +114,7 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
           Create account
         </button>
       </div>
-      {!configured && <Notice>Manager sign-in is being set up.</Notice>}
+      {!configured && <Notice>Team sign-in is being set up.</Notice>}
       {params.get("message") === "link-expired" && (
         <Notice tone="error">That email link could not be used. Request a new one.</Notice>
       )}
@@ -105,10 +129,11 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
           required
         />
       </label>
-      <label className="field">
-        <span>Password</span>
-        <Input
-          type="password"
+      <div className="field">
+        <label htmlFor="team-password">Password</label>
+        <PasswordInput
+          key={mode}
+          id="team-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           autoComplete={mode === "create" ? "new-password" : "current-password"}
@@ -116,12 +141,13 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
           maxLength={256}
           required
         />
-      </label>
+      </div>
       {mode === "create" && (
-        <label className="field">
-          <span>Confirm password</span>
-          <Input
-            type="password"
+        <div className="field">
+          <label htmlFor="team-password-confirmation">Confirm password</label>
+          <PasswordInput
+            id="team-password-confirmation"
+            visibilityLabel="confirm password"
             value={confirmation}
             onChange={(event) => setConfirmation(event.target.value)}
             autoComplete="new-password"
@@ -129,7 +155,7 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
             maxLength={256}
             required
           />
-        </label>
+        </div>
       )}
       {feedback.error && <Notice tone="error">{feedback.error}</Notice>}
       {feedback.message && <Notice tone="success">{feedback.message}</Notice>}
@@ -140,10 +166,13 @@ export function ManagerSignIn({ configured }: { configured: boolean }) {
       <Button
         type="button"
         variant="outline"
-        disabled={busy || !configured || !email.trim()}
+        disabled={busy || !configured || !email.trim() || resendSeconds > 0}
         onClick={() => void resendConfirmation()}
       >
-        <Mail size={16} /> Resend confirmation email
+        <Mail size={16} />{" "}
+        {resendSeconds > 0
+          ? `Resend confirmation email in ${resendSeconds}s`
+          : "Resend confirmation email"}
       </Button>
       {mode === "sign-in" && (
         <Link className="text-link" href="/manager/forgot-password">

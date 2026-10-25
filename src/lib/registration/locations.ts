@@ -1,0 +1,21 @@
+// Source: https://cvr.inecnigeria.org/locator/browse/29/
+export const ondoLocalGovernments = [
+  "Akoko North East",
+  "Akoko North West",
+  "Akoko South East",
+  "Akoko South West",
+  "Akure North",
+  "Akure South",
+  "Ese-Odo",
+  "Idanre",
+  "Ifedore",
+  "Ilaje",
+  "Ile Oluji/Okeigbo",
+  "Irele",
+  "Odigbo",
+  "Okitipupa",
+  "Ondo East",
+  "Ondo West",
+  "Ose",
+  "Owo",
+] as const;

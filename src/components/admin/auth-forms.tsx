@@ -7,6 +7,7 @@ import { loginAdmin, enrollMfa, verifyMfa } from "@/app/actions/auth";
 import { authenticatorQrSource } from "@/lib/mfa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Notice } from "@/components/shared";
 export function LoginForm({ configured }: { configured: boolean }) {
   const router = useRouter();
@@ -51,17 +52,17 @@ export function LoginForm({ configured }: { configured: boolean }) {
         <span>Administrator email</span>
         <Input name="email" type="email" autoComplete="username" required maxLength={254} />
       </label>
-      <label className="field">
-        <span>Password</span>
-        <Input
+      <div className="field">
+        <label htmlFor="admin-password">Password</label>
+        <PasswordInput
+          id="admin-password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           minLength={8}
           maxLength={256}
         />
-      </label>
+      </div>
       {error && (
         <div style={{ marginTop: 20 }}>
           <Notice tone="error">{error}</Notice>
