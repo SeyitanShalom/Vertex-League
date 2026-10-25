@@ -37,6 +37,9 @@ yarn-error.log*
 /test-results/
 /playwright-report/
 
+# Local operational backups and launch configuration; may contain private data.
+/.local-ops/
+
 # vercel
 .vercel
 

@@ -24,7 +24,8 @@ left join pg_catalog.pg_tables as tables
   on tables.schemaname = 'public' and tables.tablename = expected.table_name
 order by expected.table_name;
 
--- Expected: test = 100 / true; live = 34000 / false.
+-- Fees: test = 100; live = 35000. Enabled states follow the current rollout:
+-- after the live switch, test is false and live is true (see docs/LIVE_REGISTRATION.md).
 select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;

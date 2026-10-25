@@ -28,7 +28,7 @@ export default async function RegisterPage() {
     (!paymentConfigured()
       ? "The organizer is setting up payment and contact details. Registration will open once these are ready."
       : null);
-  const fee = settings?.registration_fee ?? (deploymentMode() === "test" ? 100 : 34000);
+  const fee = settings?.registration_fee ?? (deploymentMode() === "test" ? 100 : 35000);
   return (
     <div className="container page-space">
       <PageIntro

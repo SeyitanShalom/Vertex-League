@@ -10,7 +10,7 @@ This file records the decisions from the requirements discussion. Implementation
 - Managers create an email/password account and confirm their email before Phase 1. The verified email is prefilled; contact phone and WhatsApp are entered separately. One manager account owns one team per environment. Unfinished form details can be saved as a cross-device draft without reserving a place. **Save & continue to payment** submits the team and opens Phase 2 with bank details and an account-number copy control.
 - Team logos/images are sent directly in the organizer's WhatsApp chat alongside payment receipts. There are no logo/image upload forms on the website.
 - One team per manager; repeated team registrations are blocked.
-- Test fee: NGN 100. Live fee: NGN 34,000. Each registration keeps its original fee snapshot.
+- Test fee: NGN 100. Live fee: NGN 35,000. Each registration keeps its original fee snapshot.
 - Manual bank transfer; receipt and team logo submission through a standard WhatsApp chat link.
 - WhatsApp does not attach files, send messages, confirm receipt, or synchronize acknowledgment with the website.
 - Only the authorized organizer's **Payment received** action confirms money arrived and provisionally books a place.

@@ -36,7 +36,7 @@ export default async function Home() {
   const mode = deploymentMode();
   const contact = operationalContact();
   const unavailable = registrationAvailability(settings);
-  const fee = settings?.registration_fee ?? (mode === "test" ? 100 : 34000);
+  const fee = settings?.registration_fee ?? (mode === "test" ? 100 : 35000);
   return (
     <>
       <CompetitionHero
@@ -232,7 +232,7 @@ export default async function Home() {
             </div>
             <p>
               {mode === "test"
-                ? "Testing fee. Live registration will be ₦34,000 per team."
+                ? "Testing fee. Live registration will be ₦35,000 per team."
                 : "One registration fee for your team."}
             </p>
             <ul>
