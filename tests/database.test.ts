@@ -50,7 +50,7 @@ async function removeSavedRegistration(saved: Saved) {
   await db.query("delete from public.registrations where id=$1", [saved.id]);
   await db.query("delete from public.teams where id=$1", [saved.team_id]);
 }
-async function authenticate(id = admin, aal = "aal2") {
+async function authenticate(id = admin, aal = "aal1") {
   await db.query("select set_config('request.jwt.claims',$1,true)", [
     JSON.stringify({ sub: id, aal }),
   ]);
@@ -159,8 +159,8 @@ describe("paid team corrections", () => {
 
   it.each([
     [outsider, "aal2"],
-    [admin, "aal1"],
-  ])("requires an organizer with MFA for paid correction approval", async (userId, aal) => {
+    [manager, "aal1"],
+  ])("requires an allowlisted organizer for paid correction approval", async (userId, aal) => {
     const saved = await register();
     await authenticate(userId, aal);
     await expect(
@@ -564,10 +564,13 @@ describe("test registration deletion", () => {
     await expect(remove(saved.id, saved.reference)).rejects.toThrow("access_denied");
   });
 
-  it("requires organizer MFA", async () => {
+  it("accepts an allowlisted organizer's password session", async () => {
     const saved = await register();
     await authenticate(admin, "aal1");
-    await expect(remove(saved.id, saved.reference)).rejects.toThrow("access_denied");
+    await remove(saved.id, saved.reference);
+    expect(
+      (await db.query("select id from public.registrations where id=$1", [saved.id])).rows,
+    ).toHaveLength(0);
   });
 
   it("removes an untouched test entry and leaves an organizer audit tombstone", async () => {
@@ -642,8 +645,8 @@ describe("organizer registration deletion", () => {
   it.each([
     [outsider, "aal2"],
     [manager, "aal2"],
-    [admin, "aal1"],
-  ])("requires an organizer with MFA: %s / %s", async (userId, aal) => {
+    [outsider, "aal1"],
+  ])("requires an allowlisted organizer: %s / %s", async (userId, aal) => {
     const saved = await register();
     await authenticate(userId, aal);
     await expect(remove(saved)).rejects.toThrow("access_denied");
@@ -1053,15 +1056,31 @@ describe("database authorization and administrative transitions", () => {
     const result = await db.query("select * from public.registrations");
     expect(result.rows).toHaveLength(0);
   });
-  it("rejects administrator mutations without MFA", async () => {
+  it("accepts administrator mutations with a password session", async () => {
     const r = await register();
     await authenticate(admin, "aal1");
-    await expect(action(r.id, "payment_received")).rejects.toThrow("access_denied");
+    await action(r.id, "payment_received");
+    const payment = await db.query<{ payment_status: string }>(
+      "select payment_status from public.payments where registration_id=$1",
+      [r.id],
+    );
+    expect(payment.rows[0].payment_status).toBe("confirmed");
   });
   it("rejects a non-admin even with MFA", async () => {
     const r = await register();
-    await authenticate(outsider);
+    await authenticate(outsider, "aal2");
     await expect(action(r.id, "payment_received")).rejects.toThrow("access_denied");
+  });
+  it("does not let a signed-in user add themselves to the admin allowlist", async () => {
+    await authenticate(outsider);
+    await expect(
+      db.query("insert into public.admin_members(user_id) values($1)", [outsider]),
+    ).rejects.toThrow(/permission denied/i);
+  });
+  it("does not authorize a session without a user identity", async () => {
+    await db.exec("set local role authenticated;");
+    const result = await db.query<{ allowed: boolean }>("select public.is_vertex_admin() allowed");
+    expect(result.rows[0].allowed).toBe(false);
   });
   it("payment received provisionally books without approving and writes an audit event", async () => {
     const r = await register();

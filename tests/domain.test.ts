@@ -7,7 +7,6 @@ import {
 import { registrationAvailability, canEdit, permittedAction } from "@/lib/registration/rules";
 import { whatsappLink, paymentMessage } from "@/lib/whatsapp";
 import { csvCell, csv } from "@/lib/csv";
-import { authenticatorQrSource } from "@/lib/mfa";
 import type { OperationalSettings } from "@/types/domain";
 const settings: OperationalSettings = {
   mode: "test",
@@ -60,24 +59,6 @@ describe("registration validation", () => {
     expect(normalizePhone("+14155552671")).toBeNull();
   });
 });
-describe("authenticator QR rendering", () => {
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0h1v1H0z"/></svg>\n';
-  it.each([
-    svg,
-    `data:image/svg+xml;utf-8,${svg}`,
-    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
-  ])("renders SVG enrollment images without raw control characters or URL fragments", (input) => {
-    const source = authenticatorQrSource(input);
-    expect(source).not.toMatch(/\s/);
-    expect(new URL(source).hash).toBe("");
-    expect(decodeURIComponent(source.slice(source.indexOf(",") + 1)).trim()).toBe(svg.trim());
-  });
-  it("preserves base64 enrollment images", () => {
-    const source = "data:image/svg+xml;base64,PHN2Zy8+";
-    expect(authenticatorQrSource(`${source}\n`)).toBe(source);
-  });
-});
-
 describe("availability and edits", () => {
   it("fails closed without configuration", () =>
     expect(registrationAvailability(null)).toBeTruthy());

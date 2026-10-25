@@ -6,12 +6,15 @@ import { hasDatabase } from "@/lib/config/server";
 export async function managerIdentity() {
   if (!hasDatabase()) return null;
   const client = await authClient();
-  const { data: { user }, error } = await client.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await client.auth.getUser();
   if (error || !user?.email || !user.email_confirmed_at) return null;
   return { client, user, email: user.email.trim().toLowerCase() };
 }
 
-export async function adminIdentity(requireMfa = true) {
+export async function adminIdentity() {
   if (!hasDatabase()) return null;
   const client = await authClient();
   const {
@@ -25,16 +28,10 @@ export async function adminIdentity(requireMfa = true) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (memberError || !member) return null;
-  if (requireMfa) {
-    const { data: level, error: mfaError } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (mfaError || level?.currentLevel !== "aal2") return null;
-  }
   return { client, user };
 }
 export async function requireAdmin() {
-  const identity = await adminIdentity(false);
+  const identity = await adminIdentity();
   if (!identity) redirect("/admin/login");
-  const { data, error } = await identity.client.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (error || data?.currentLevel !== "aal2") redirect("/admin/mfa");
   return identity;
 }
