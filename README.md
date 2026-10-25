@@ -21,7 +21,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 ## Connect Supabase for testing
 
 1. Create a dedicated Supabase **test** project. Use a separate project and deployment for live data.
-2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The hosted test project has seven migrations through `20261023154633_delete_test_registrations.sql`. Run the read-only checks in `supabase/verify-setup.sql` to verify the setup.
+2. Apply the files in `supabase/migrations/` in filename order, preferably with the Supabase CLI's `supabase db push` so local filenames and hosted migration versions stay aligned. If using Supabase MCP's `apply_migration`, match the local filename to the version it records. Apply only pending migrations to an existing database. The repository contains eight migrations through `20261025112908_reset_registration_references_when_empty.sql`. Run the read-only checks in `supabase/verify-setup.sql` to verify the hosted setup.
 3. Set the project URL, publishable key and server secret key in `.env.local`. A legacy service-role key can be used as `SUPABASE_SECRET_KEY`; it must remain server-only.
 4. Generate a token secret and copy the result into `STATUS_TOKEN_SECRET`:
 
@@ -58,7 +58,7 @@ where mode='test';
 update public.competition_settings set registration_enabled=false where mode='test';
 ```
 
-When decided, set `registration_deadline` to the actual ISO timestamp with its offset. Nigerian local times use `+01:00`. Both server and database enforce the cutoff. Existing registrations retain their fee snapshot. Sequence gaps are expected. Vertex League has no fixed capacity (`maximum_teams=null`). Optional capacity checks exist; with manual transfers, late/excess payments still require the organizer's attention.
+When decided, set `registration_deadline` to the actual ISO timestamp with its offset. Nigerian local times use `+01:00`. Both server and database enforce the cutoff. Existing registrations retain their fee snapshot. Reference numbers use one shared counter across both modes. Once the reference-reset migration is applied, deleting the final registration resets the next reference number to `000001`; deleting an individual entry while any registration remains preserves the counter and other references. Full registration-table truncation also resets it. A rolled-back deletion restores the previous counter; gaps from failed submissions can still occur. Vertex League has no fixed capacity (`maximum_teams=null`). Optional capacity checks exist; with manual transfers, late/excess payments still require the organizer's attention.
 
 | Environment variable                                    | Purpose                                                                                             |
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |

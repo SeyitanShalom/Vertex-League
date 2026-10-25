@@ -30,7 +30,7 @@ select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;
 
--- Expected: 7 rows, all true.
+-- Expected: 8 rows, all true.
 select
   'vertex_league' as migration,
   to_regprocedure('public.create_team_registration(text,jsonb,uuid,text,text)') is not null as applied
@@ -82,4 +82,28 @@ select
   and not has_function_privilege('anon',
     'public.delete_test_registration(uuid,text)', 'execute')
   and has_function_privilege('authenticated',
-    'public.delete_test_registration(uuid,text)', 'execute');
+    'public.delete_test_registration(uuid,text)', 'execute')
+union all
+select
+  'reset_registration_references_when_empty',
+  exists (
+    select 1 from pg_catalog.pg_trigger
+    where tgrelid = 'public.registrations'::regclass
+      and tgname = 'reset_empty_registration_references'
+      and tgenabled = 'O' and not tgisinternal
+  )
+  and not has_function_privilege('anon',
+    'vertex_private.reset_empty_registration_references()', 'execute')
+  and not has_function_privilege('authenticated',
+    'vertex_private.reset_empty_registration_references()', 'execute')
+  and not has_function_privilege('service_role',
+    'vertex_private.reset_empty_registration_references()', 'execute');
+
+-- Read without consuming a reference number. When no registrations remain after
+-- a reset, expect last_value=1, is_called=false, next_number=1.
+select
+  (select count(*) from public.registrations) as registrations_remaining,
+  last_value,
+  is_called,
+  case when is_called then last_value + 1 else last_value end as next_number
+from public.registration_reference_seq;

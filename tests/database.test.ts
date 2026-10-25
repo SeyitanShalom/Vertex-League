@@ -43,6 +43,13 @@ async function registerManager(
   );
   return result.rows[0].result;
 }
+async function removeSavedRegistration(saved: Saved) {
+  await db.query("delete from public.admin_audit_logs where registration_id=$1", [saved.id]);
+  await db.query("delete from public.payments where registration_id=$1", [saved.id]);
+  await db.query("delete from public.manager_contacts where team_id=$1", [saved.team_id]);
+  await db.query("delete from public.registrations where id=$1", [saved.id]);
+  await db.query("delete from public.teams where id=$1", [saved.team_id]);
+}
 async function authenticate(id = admin, aal = "aal2") {
   await db.query("select set_config('request.jwt.claims',$1,true)", [
     JSON.stringify({ sub: id, aal }),
@@ -94,6 +101,106 @@ afterEach(async () => {
   await db.exec("rollback; reset role;");
 });
 describe("real PostgreSQL registration rules", () => {
+  it("restarts at 000001 after the organizer deletes the final test registration", async () => {
+    await db.exec("alter sequence public.registration_reference_seq restart with 41");
+    const saved = await register();
+    expect(saved.reference).toBe("VL-TEST-2026-000041");
+    await authenticate();
+    await db.query("select public.delete_test_registration($1,$2)", [saved.id, saved.reference]);
+    await db.exec("reset role");
+    expect((await register()).reference).toBe("VL-TEST-2026-000001");
+  });
+  it("keeps the counter and other references when only one of several registrations is deleted", async () => {
+    await db.exec("alter sequence public.registration_reference_seq restart with 41");
+    const first = await register();
+    const other = await register({
+      ...team,
+      team_name: "Tigers FC",
+      phone: "+2348031234568",
+      whatsapp_number: "+2348031234568",
+    });
+    await removeSavedRegistration(first);
+    const remaining = await db.query<{ registration_reference: string }>(
+      "select registration_reference from public.registrations where id=$1",
+      [other.id],
+    );
+    expect(remaining.rows[0].registration_reference).toBe(other.reference);
+    expect((await register()).reference).toBe("VL-TEST-2026-000043");
+  });
+  it("does not reset after deleting all test entries while a live registration remains", async () => {
+    await db.exec(`alter sequence public.registration_reference_seq restart with 41;
+      update public.competition_settings set registration_enabled=true,
+        registration_deadline=now()+interval '1 day' where mode='live'`);
+    const test = await register();
+    const live = await register(team, randomUUID(), "live");
+    await removeSavedRegistration(test);
+    expect((await register()).reference).toBe("VL-TEST-2026-000043");
+    await removeSavedRegistration(live);
+    const last = await db.query<{ id: string; registration_reference: string; team_id: string }>(
+      "select id,registration_reference,team_id from public.registrations",
+    );
+    await removeSavedRegistration({
+      ...last.rows[0],
+      reference: last.rows[0].registration_reference,
+    });
+    expect((await register(team, randomUUID(), "live")).reference).toBe("VL-2026-000001");
+  });
+  it("restores both the registration and counter when final deletion is rolled back", async () => {
+    await db.exec("alter sequence public.registration_reference_seq restart with 41");
+    const saved = await register();
+    await db.exec("savepoint before_cleanup");
+    await removeSavedRegistration(saved);
+    const emptyCounter = await db.query<{ last_value: number; is_called: boolean }>(
+      "select last_value::int,is_called from public.registration_reference_seq",
+    );
+    expect(emptyCounter.rows[0]).toEqual({ last_value: 1, is_called: false });
+    await db.exec("rollback to savepoint before_cleanup");
+    const restored = await db.query("select id from public.registrations where id=$1", [saved.id]);
+    expect(restored.rows).toHaveLength(1);
+    const next = await register({
+      ...team,
+      team_name: "Tigers FC",
+      phone: "+2348031234568",
+      whatsapp_number: "+2348031234568",
+    });
+    expect(next.reference).toBe("VL-TEST-2026-000042");
+  });
+  it("restarts after a bulk cleanup and truncation of all registrations", async () => {
+    await db.exec("alter sequence public.registration_reference_seq restart with 41");
+    await register();
+    await register({
+      ...team,
+      team_name: "Tigers FC",
+      phone: "+2348031234568",
+      whatsapp_number: "+2348031234568",
+    });
+    await db.exec(`delete from public.admin_audit_logs; delete from public.payments;
+      delete from public.manager_contacts; delete from public.registrations;
+      delete from public.teams`);
+    expect((await register()).reference).toBe("VL-TEST-2026-000001");
+    await db.exec("truncate public.registrations cascade");
+    const next = await register({
+      ...team,
+      team_name: "New Team FC",
+      phone: "+2348031234569",
+      whatsapp_number: "+2348031234569",
+    });
+    expect(next.reference).toBe("VL-TEST-2026-000001");
+  });
+  it("keeps the reset trigger helper unavailable to application roles", async () => {
+    const result = await db.query<{ allowed: boolean }>(`
+      select has_function_privilege(role_name,
+        'vertex_private.reset_empty_registration_references()', 'execute') as allowed
+      from unnest(array['anon','authenticated','service_role']) role_name`);
+    expect(result.rows.map((row) => row.allowed)).toEqual([false, false, false]);
+  });
+  it("rejects a final deletion using an older repeatable-read snapshot", async () => {
+    await db.exec("set transaction isolation level repeatable read");
+    const saved = await register();
+    await expect(removeSavedRegistration(saved)).rejects.toThrow(
+      "reference_reset_requires_read_committed",
+    );
+  });
   it("does not truncate reference numbers after the millionth submission", async () => {
     await db.exec("select setval('public.registration_reference_seq',1000000)");
     const r = await register();
@@ -231,13 +338,16 @@ describe("test registration deletion", () => {
       contacts: number;
       payments: number;
       deletion_events: number;
-    }>(`select
+    }>(
+      `select
       (select count(*)::int from public.registrations) registrations,
       (select count(*)::int from public.teams) teams,
       (select count(*)::int from public.manager_contacts) contacts,
       (select count(*)::int from public.payments) payments,
       (select count(*)::int from public.admin_audit_logs
-        where action = 'test_registration_deleted' and admin_id = $1) deletion_events`, [admin]);
+        where action = 'test_registration_deleted' and admin_id = $1) deletion_events`,
+      [admin],
+    );
     expect(result.rows[0]).toEqual({
       registrations: 0,
       teams: 0,
@@ -268,7 +378,9 @@ describe("test registration deletion", () => {
   });
 
   it("never deletes a live registration", async () => {
-    await db.exec("update public.competition_settings set registration_enabled=true, registration_deadline=now()+interval '1 day' where mode='live'");
+    await db.exec(
+      "update public.competition_settings set registration_enabled=true, registration_deadline=now()+interval '1 day' where mode='live'",
+    );
     const saved = await register(team, randomUUID(), "live");
     await authenticate();
     await expect(remove(saved.id, saved.reference)).rejects.toThrow("registration_not_found");

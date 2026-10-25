@@ -40,6 +40,9 @@ yarn-error.log*
 # Local operational backups and launch configuration; may contain private data.
 /.local-ops/
 
+# Supabase CLI connection cache.
+/supabase/.temp/
+
 # vercel
 .vercel
 
