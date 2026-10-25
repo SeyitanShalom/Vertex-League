@@ -49,6 +49,7 @@ export default async function AdminDetail({ params }: { params: Promise<{ id: st
   const chat = whatsappLink(
     row.teams.whatsapp_number,
     `Hello ${row.teams.manager_name}, this is the Vertex League organizer regarding ${row.teams.team_name}.\nRegistration reference: ${row.registration_reference}`,
+    { directChat: true },
   );
   return (
     <div className="container page-space">

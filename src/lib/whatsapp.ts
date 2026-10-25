@@ -1,8 +1,13 @@
 import { money } from "@/lib/utils";
 import { TEAM_CORRECTION_FEE } from "@/lib/registration/corrections";
-export function whatsappLink(number: string, message: string) {
+export function whatsappLink(
+  number: string,
+  message: string,
+  options: { directChat?: boolean } = {},
+) {
   const digits = number.replace(/[+\s()-]/g, "");
   if (!/^[1-9]\d{7,14}$/.test(digits)) return null;
+  if (options.directChat) return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
   // Wait for the user's choice instead of automatically opening the desktop protocol.
   return `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}&autoload=0`;
 }

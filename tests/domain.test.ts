@@ -137,6 +137,15 @@ describe("WhatsApp handoff", () => {
   });
   it.each(["", "08031234567"])("rejects a missing or malformed organizer number: %s", (number) => {
     expect(whatsappLink(number, "Hello")).toBeNull();
+    expect(whatsappLink(number, "Hello", { directChat: true })).toBeNull();
+  });
+  it("addresses the manager's chat and preserves the organizer's prefilled message", () => {
+    const message =
+      "Hello Ada, this is the Vertex League organizer regarding Eagles & Stars.\nRegistration reference: VL-TEST-2026-000001";
+    const link = new URL(whatsappLink("+234 (803) 123-4567", message, { directChat: true })!);
+    expect(link.origin).toBe("https://wa.me");
+    expect(link.pathname).toBe("/2348031234567");
+    expect(link.searchParams.get("text")).toBe(message);
   });
 });
 describe("CSV export", () => {
