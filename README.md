@@ -1,6 +1,6 @@
 # Vertex League
 
-A Next.js football competition website with manager email sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. Production registration is in **live mode, NGN 35,000 per team**, closing **21 November 2026 at 23:59 WAT**. Test registration is closed.
+A Next.js football competition website with manager email sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. The app is configured for a live fee of **NGN 25,000 per team** and currently pauses live registration with a **00:00:00** countdown. These source changes still need deployment, and the live Supabase fee row must be synced before registration can safely reopen. Test registration remains separate.
 
 For the cleanup, confirmed real registration values and production deployment record, see the [live registration handoff](docs/LIVE_REGISTRATION.md).
 
@@ -138,7 +138,7 @@ To manage the test server separately, start `npm.cmd run start -- --hostname 127
 
 Import this `vertex` directory as the Vercel project root, select Next.js, install with `npm ci` and build with `npm run build`. Configure a dedicated **test** Supabase project and test values first. Keep test mode visible while reviewing it. No deployment is performed by the local build.
 
-For a new live deployment, use a separate live Supabase project, apply the migrations and provision its admin. Configure real bank/contact/event details, a new token secret and the HTTPS origin. Set the live database row's actual deadline/year, NGN 35,000 fee, unlimited capacity and `registration_enabled=true`, then set deployment `COMPETITION_MODE=live`. Do not copy test registrations into the live project. Run the live smoke checks in [security notes](docs/SECURITY.md) before opening registration. The current site's 25 October cutover retained its configured Supabase project and Auth setup, cleared test records, and enabled the separate live mode; see the [deployment record](docs/LIVE_REGISTRATION.md).
+For a new live deployment, use a separate live Supabase project, apply the migrations and provision its admin. Configure real bank/contact/event details, a new token secret and the HTTPS origin. Set the live database row's actual deadline/year, NGN 25,000 fee, unlimited capacity and `registration_enabled=false` while paused, then set deployment `COMPETITION_MODE=live`. Do not copy test registrations into the live project. Run the live smoke checks in [security notes](docs/SECURITY.md) and sync the database fee before reopening registration. The current site's 25 October cutover retained its configured Supabase project and Auth setup, cleared test records, and enabled the separate live mode; see the [deployment record](docs/LIVE_REGISTRATION.md).
 
 ## Troubleshooting
 

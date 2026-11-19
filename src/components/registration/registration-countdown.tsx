@@ -20,36 +20,48 @@ export function RegistrationCountdown({
   deadline,
   deadlineLabel,
   remaining,
+  forceZero = false,
   compact = false,
 }: {
-  deadline: string;
-  deadlineLabel: string;
+  deadline: string | null;
+  deadlineLabel: string | null;
   remaining: ReturnType<typeof registrationTimeLeft> | null;
+  forceZero?: boolean;
   compact?: boolean;
 }) {
-  const units = [
-    ["Days", remaining?.days],
-    ["Hours", remaining?.hours],
-    ["Minutes", remaining?.minutes],
-    ["Seconds", remaining?.seconds],
-  ] as const;
+  const units = forceZero
+    ? ([
+        ["Hours", 0],
+        ["Minutes", 0],
+        ["Seconds", 0],
+      ] as const)
+    : ([
+        ["Days", remaining?.days],
+        ["Hours", remaining?.hours],
+        ["Minutes", remaining?.minutes],
+        ["Seconds", remaining?.seconds],
+      ] as const);
+  const label = forceZero
+    ? "Registration closed. Countdown 00:00:00"
+    : !remaining
+      ? "Registration countdown loading"
+      : remaining.expired
+        ? "Registration closed"
+        : `Registration closes in ${remaining.days} days, ${remaining.hours} hours, ${remaining.minutes} minutes and ${remaining.seconds} seconds`;
   return (
     <div
       className={`registration-countdown${compact ? " registration-countdown--compact" : ""}`}
       role="timer"
       aria-live="off"
-      aria-label={
-        !remaining
-          ? "Registration countdown loading"
-          : remaining.expired
-            ? "Registration closed"
-            : `Registration closes in ${remaining.days} days, ${remaining.hours} hours, ${remaining.minutes} minutes and ${remaining.seconds} seconds`
-      }
+      aria-label={label}
     >
       <span className="tiny-label">
-        {remaining?.expired ? "REGISTRATION CLOSED" : "REGISTRATION CLOSES IN"}
+        {forceZero || remaining?.expired ? "REGISTRATION CLOSED" : "REGISTRATION CLOSES IN"}
       </span>
-      <div className="registration-countdown-grid" aria-hidden="true">
+      <div
+        className={`registration-countdown-grid${forceZero ? " registration-countdown-grid--time" : ""}`}
+        aria-hidden="true"
+      >
         {units.map(([label, value]) => (
           <div key={label}>
             <strong>{value === undefined ? "--" : String(value).padStart(2, "0")}</strong>
@@ -57,7 +69,7 @@ export function RegistrationCountdown({
           </div>
         ))}
       </div>
-      <time dateTime={deadline}>{deadlineLabel}</time>
+      {!forceZero && deadline && deadlineLabel && <time dateTime={deadline}>{deadlineLabel}</time>}
     </div>
   );
 }

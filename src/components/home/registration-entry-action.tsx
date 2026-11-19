@@ -12,16 +12,18 @@ import {
 export function RegistrationEntryAction({
   deadline,
   unavailable,
+  registrationClosed,
 }: {
   deadline: string | null;
   unavailable: string | null;
+  registrationClosed: boolean;
 }) {
   const remaining = useRegistrationCountdown(deadline);
   const expired = remaining?.expired ?? unavailable === REGISTRATION_DEADLINE_PASSED;
-  const disabled = !!unavailable || expired;
+  const disabled = registrationClosed || !!unavailable || expired;
   return disabled ? (
     <Button variant="outline" size="lg" disabled>
-      {expired ? "Registration closed" : "Registration unavailable"}
+      {expired || registrationClosed ? "Registration closed" : "Registration unavailable"}
     </Button>
   ) : (
     <Button asChild variant="outline" size="lg">
@@ -36,12 +38,14 @@ export function RegistrationHeroAction({
   deadline,
   deadlineLabel,
   registrationEnabled,
+  registrationClosed,
   unavailable,
   children,
 }: {
   deadline: string | null;
   deadlineLabel: string | null;
   registrationEnabled: boolean;
+  registrationClosed: boolean;
   unavailable: string | null;
   children?: ReactNode;
 }) {
@@ -49,17 +53,18 @@ export function RegistrationHeroAction({
   const expired = remaining?.expired ?? unavailable === REGISTRATION_DEADLINE_PASSED;
   return (
     <>
-      {registrationEnabled && deadline && deadlineLabel && (
+      {(registrationClosed || (registrationEnabled && deadline && deadlineLabel)) && (
         <RegistrationCountdown
           deadline={deadline}
           deadlineLabel={deadlineLabel}
           remaining={remaining}
+          forceZero={registrationClosed}
         />
       )}
       <div className="button-row">
-        {unavailable || expired ? (
+        {unavailable || expired || registrationClosed ? (
           <Button size="lg" disabled>
-            {expired ? "Registration closed" : "Registration unavailable"}
+            {expired || registrationClosed ? "Registration closed" : "Registration unavailable"}
           </Button>
         ) : (
           <Button asChild size="lg">

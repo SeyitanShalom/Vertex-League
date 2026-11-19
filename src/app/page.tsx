@@ -5,7 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { CompetitionHero } from "@/components/home/competition-hero";
 import { RegistrationEntryAction } from "@/components/home/registration-entry-action";
 import { Reveal } from "@/components/motion/reveal";
-import { competition } from "@/lib/config/competition";
+import {
+  competition,
+  LIVE_REGISTRATION_FEE,
+  LIVE_REGISTRATION_PAUSED,
+} from "@/lib/config/competition";
 import { deploymentMode, getSettings, operationalContact } from "@/lib/config/server";
 import { registrationAvailability } from "@/lib/registration/rules";
 import { money, deadlineLabel } from "@/lib/utils";
@@ -34,9 +38,10 @@ const steps = [
 export default async function Home() {
   const settings = await getSettings();
   const mode = deploymentMode();
+  const registrationClosed = mode === "live" && LIVE_REGISTRATION_PAUSED;
   const contact = operationalContact();
-  const unavailable = registrationAvailability(settings);
-  const fee = settings?.registration_fee ?? (mode === "test" ? 100 : 35000);
+  const unavailable = registrationAvailability(settings, undefined, mode);
+  const fee = mode === "live" ? LIVE_REGISTRATION_FEE : (settings?.registration_fee ?? 100);
   return (
     <>
       <CompetitionHero
@@ -45,6 +50,7 @@ export default async function Home() {
           settings?.registration_deadline ? deadlineLabel(settings.registration_deadline) : null
         }
         registrationEnabled={settings?.registration_enabled ?? false}
+        registrationClosed={registrationClosed}
         unavailable={unavailable}
       />
       <div className="facts-strip">
@@ -216,6 +222,7 @@ export default async function Home() {
             <RegistrationEntryAction
               deadline={settings?.registration_deadline ?? null}
               unavailable={unavailable}
+              registrationClosed={registrationClosed}
             />
             <Link href="/manager/sign-in" className="returning-link">
               Already registered? Sign in to your team ↗
@@ -232,7 +239,7 @@ export default async function Home() {
             </div>
             <p>
               {mode === "test"
-                ? "Testing fee. Live registration will be ₦35,000 per team."
+                ? "Testing fee. Live registration will be ₦25,000 per team."
                 : "One registration fee for your team."}
             </p>
             <ul>
@@ -285,9 +292,20 @@ export default async function Home() {
       <section className="closing-strip">
         <Reveal className="container" distance={16}>
           <h2>THE NEXT MOVE IS YOURS.</h2>
-          <Link href="#rules" aria-label="Register your team">
-            <ArrowUpRight size={40} />
-          </Link>
+          {registrationClosed ? (
+            <button
+              type="button"
+              className="closing-register-disabled"
+              aria-label="Registration closed"
+              disabled
+            >
+              <ArrowUpRight size={40} />
+            </button>
+          ) : (
+            <Link href="#rules" aria-label="Register your team">
+              <ArrowUpRight size={40} />
+            </Link>
+          )}
         </Reveal>
       </section>
     </>

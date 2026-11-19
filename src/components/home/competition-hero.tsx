@@ -21,11 +21,13 @@ export function CompetitionHero({
   deadline,
   deadlineLabel,
   registrationEnabled,
+  registrationClosed,
   unavailable,
 }: {
   deadline: string | null;
   deadlineLabel: string | null;
   registrationEnabled: boolean;
+  registrationClosed: boolean;
   unavailable: string | null;
 }) {
   return (
@@ -50,6 +52,7 @@ export function CompetitionHero({
               deadline={deadline}
               deadlineLabel={deadlineLabel}
               registrationEnabled={registrationEnabled}
+              registrationClosed={registrationClosed}
               unavailable={unavailable}
             >
               <Link className="text-link" href="#about">

@@ -1,16 +1,25 @@
 import type {
+  Mode,
   OperationalSettings,
   PaymentStatus,
   RegistrationStatus,
   RefundStatus,
   AdminAction,
 } from "@/types/domain";
+import { LIVE_REGISTRATION_FEE, LIVE_REGISTRATION_PAUSED } from "@/lib/config/competition";
 
 export const REGISTRATION_DEADLINE_PASSED = "The registration deadline has passed.";
 
-export function registrationAvailability(settings: OperationalSettings | null, now = new Date()) {
+export function registrationAvailability(
+  settings: OperationalSettings | null,
+  now = new Date(),
+  mode: Mode = settings?.mode ?? "test",
+) {
+  if (mode === "live" && LIVE_REGISTRATION_PAUSED) return "Registration is currently closed.";
   if (!settings) return "Registration is being set up. Please check back shortly.";
   if (!settings.registration_enabled) return "Registration is currently closed.";
+  if (mode === "live" && Number(settings.registration_fee) !== LIVE_REGISTRATION_FEE)
+    return "The organizer is finalizing the registration fee.";
   if (settings.registration_deadline && now >= new Date(settings.registration_deadline))
     return REGISTRATION_DEADLINE_PASSED;
   if (settings.mode === "live" && !settings.registration_deadline)

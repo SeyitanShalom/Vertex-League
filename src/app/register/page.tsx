@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { TeamForm } from "@/components/registration/team-form";
 import { PageIntro } from "@/components/shared";
 import { getSettings, paymentConfigured, deploymentMode } from "@/lib/config/server";
+import { LIVE_REGISTRATION_FEE, LIVE_REGISTRATION_PAUSED } from "@/lib/config/competition";
 import { registrationAvailability } from "@/lib/registration/rules";
 import { money, deadlineLabel } from "@/lib/utils";
 import { managerIdentity } from "@/lib/auth";
@@ -13,22 +14,23 @@ import { signOutManager } from "@/app/actions/manager-auth";
 import { Button } from "@/components/ui/button";
 export const metadata: Metadata = { title: "Register your team" };
 export default async function RegisterPage() {
+  const mode = deploymentMode();
   const identity = await managerIdentity();
   if (!identity) redirect("/manager/sign-in");
   if (await managerRegistrationReference(identity.user.id)) redirect("/team");
   if (await legacyRegistrationForEmail(identity.email)) redirect("/manager/claim");
   const { data: savedDraft } = await serviceClient().rpc("load_manager_draft", {
-    p_mode: deploymentMode(),
+    p_mode: mode,
     p_user_id: identity.user.id,
   });
   const draft = registrationDraftSchema.safeParse(savedDraft);
   const settings = await getSettings();
   const disabledReason =
-    registrationAvailability(settings) ||
+    registrationAvailability(settings, undefined, mode) ||
     (!paymentConfigured()
       ? "The organizer is setting up payment and contact details. Registration will open once these are ready."
       : null);
-  const fee = settings?.registration_fee ?? (deploymentMode() === "test" ? 100 : 35000);
+  const fee = mode === "live" ? LIVE_REGISTRATION_FEE : (settings?.registration_fee ?? 100);
   return (
     <div className="container page-space">
       <PageIntro
@@ -45,6 +47,7 @@ export default async function RegisterPage() {
         <section className="panel">
           <TeamForm
             disabledReason={disabledReason}
+            registrationClosed={mode === "live" && LIVE_REGISTRATION_PAUSED}
             verifiedEmail={identity.email}
             draft={draft.success ? draft.data : undefined}
             deadline={settings?.registration_enabled ? settings.registration_deadline : null}
@@ -65,7 +68,7 @@ export default async function RegisterPage() {
             </h2>
             <dl className="summary-list">
               <div>
-                <dt>{deploymentMode() === "test" ? "Testing fee" : "Registration fee"}</dt>
+                <dt>{mode === "test" ? "Testing fee" : "Registration fee"}</dt>
                 <dd className="big">{money(fee)}</dd>
               </div>
               <div>

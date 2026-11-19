@@ -58,7 +58,13 @@ function MobileNavigation({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function Header({ testMode }: { testMode: boolean }) {
+export function Header({
+  testMode,
+  registrationClosed,
+}: {
+  testMode: boolean;
+  registrationClosed: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   return (
@@ -95,11 +101,17 @@ export function Header({ testMode }: { testMode: boolean }) {
           </nav>
           <div className="nav-actions">
             <AnimatedThemeToggle />
-            <Button asChild size="sm" className="nav-register">
-              <Link href="/#rules">
-                Register your team <ArrowUpRight size={16} />
-              </Link>
-            </Button>
+            {registrationClosed ? (
+              <Button size="sm" className="nav-register" disabled>
+                Registration closed
+              </Button>
+            ) : (
+              <Button asChild size="sm" className="nav-register">
+                <Link href="/#rules">
+                  Register your team <ArrowUpRight size={16} />
+                </Link>
+              </Button>
+            )}
             <button
               ref={menuButton}
               className="menu-button"

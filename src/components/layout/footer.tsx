@@ -3,7 +3,7 @@ import { Brand } from "@/components/layout/header";
 import { ArrowUpRight } from "lucide-react";
 import { operationalContact } from "@/lib/config/server";
 import { whatsappLink } from "@/lib/whatsapp";
-export function Footer() {
+export function Footer({ registrationClosed }: { registrationClosed: boolean }) {
   const contact = operationalContact();
   const chat = whatsappLink(contact.whatsapp, "Hello, I have a question about Vertex League.");
   return (
@@ -19,9 +19,15 @@ export function Footer() {
             </p>
           </div>
           <div className="footer-links">
-            <Link href="/register">
-              Team registration <ArrowUpRight size={14} />
-            </Link>
+            {registrationClosed ? (
+              <span className="footer-link-disabled" aria-disabled="true">
+                Registration closed
+              </span>
+            ) : (
+              <Link href="/register">
+                Team registration <ArrowUpRight size={14} />
+              </Link>
+            )}
             <Link href="/manager/sign-in">
               Your registration <ArrowUpRight size={14} />
             </Link>

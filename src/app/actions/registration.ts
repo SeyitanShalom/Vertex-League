@@ -40,7 +40,7 @@ export async function registerTeam(
   try {
     await rateLimit("register", 20);
     const settings = await getSettings();
-    const unavailable = registrationAvailability(settings);
+    const unavailable = registrationAvailability(settings, undefined, deploymentMode());
     if (unavailable) return { error: unavailable };
     const { accepted_rules: _accepted, website: _website, ...fields } = parsed.data;
     void _accepted;

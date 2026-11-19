@@ -53,10 +53,11 @@ const settingsSchema = z.object({
 });
 export async function getSettings(): Promise<OperationalSettings | null> {
   if (!hasDatabase()) return null;
+  const mode = deploymentMode();
   const { data, error } = await serviceClient()
     .from("competition_settings")
     .select("*")
-    .eq("mode", deploymentMode())
+    .eq("mode", mode)
     .maybeSingle();
   if (error) {
     console.error("Competition settings unavailable", { code: error.code });

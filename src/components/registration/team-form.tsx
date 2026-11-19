@@ -83,8 +83,10 @@ export function TeamForm({
   draft,
   deadline = null,
   deadlineLabel = null,
+  registrationClosed = false,
 }: {
   disabledReason?: string | null;
+  registrationClosed?: boolean;
   existing?: { reference: string; team: Team };
   verifiedEmail?: string;
   draft?: RegistrationDraft;
@@ -100,7 +102,7 @@ export function TeamForm({
   const submissionKey = useRef<string | null>(null);
   const submitting = useRef(false);
   const [feedback, setFeedback] = useState<{ error?: string; success?: string }>({});
-  const remaining = useRegistrationCountdown(existing ? null : deadline);
+  const remaining = useRegistrationCountdown(existing || registrationClosed ? null : deadline);
   const currentDisabledReason = remaining?.expired ? REGISTRATION_DEADLINE_PASSED : disabledReason;
   const [draftStatus, setDraftStatus] = useState<DraftSaveStatus>(draft ? "saved" : "idle");
   const [autosave] = useState(() =>
@@ -204,11 +206,12 @@ export function TeamForm({
           Check your team details carefully before submitting. {TEAM_CORRECTION_POLICY}
         </Notice>
       )}
-      {!existing && deadline && deadlineLabel && (
+      {!existing && (registrationClosed || (deadline && deadlineLabel)) && (
         <RegistrationCountdown
           deadline={deadline}
           deadlineLabel={deadlineLabel}
           remaining={remaining}
+          forceZero={registrationClosed}
           compact
         />
       )}

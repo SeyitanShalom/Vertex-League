@@ -816,6 +816,9 @@ svg {
   margin: 9px 0 8px;
   border-block: 1px solid var(--border-strong);
 }
+.registration-countdown-grid--time {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .registration-countdown-grid > div {
   min-width: 0;
   padding: 10px 8px 9px;
@@ -988,7 +991,8 @@ svg {
   font-weight: 400;
   letter-spacing: 0;
 }
-.closing-strip a {
+.closing-strip a,
+.closing-strip .closing-register-disabled {
   border: 1px solid var(--primary-text);
   border-radius: 50%;
   width: 58px;
@@ -996,6 +1000,16 @@ svg {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.closing-strip .closing-register-disabled:disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.footer-link-disabled {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
 }
 .site-footer {
   padding-top: 60px;
@@ -1934,11 +1948,13 @@ td a {
     font-size: 22px;
     max-width: 220px;
   }
-  .closing-strip a {
+  .closing-strip a,
+  .closing-strip .closing-register-disabled {
     width: 45px;
     height: 45px;
   }
-  .closing-strip a svg {
+  .closing-strip a svg,
+  .closing-strip .closing-register-disabled svg {
     width: 28px;
   }
   .footer-top {

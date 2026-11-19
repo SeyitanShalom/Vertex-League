@@ -6,6 +6,7 @@ import { LogoThemeFilter } from "@/components/layout/logo-theme-filter";
 import { JadeSkyBackground } from "@/components/layout/jade-sky-background";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { LIVE_REGISTRATION_PAUSED } from "@/lib/config/competition";
 import { deploymentMode, siteUrl } from "@/lib/config/server";
 import "./globals.css";
 import "./brand-fonts.css";
@@ -24,6 +25,8 @@ export const metadata: Metadata = {
 };
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const mode = deploymentMode();
+  const registrationClosed = mode === "live" && LIVE_REGISTRATION_PAUSED;
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
@@ -31,9 +34,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ThemeProvider nonce={nonce}>
           <JadeSkyBackground />
           <MotionProvider>
-            <Header testMode={deploymentMode() === "test"} />
+            <Header testMode={mode === "test"} registrationClosed={registrationClosed} />
             <main id="main">{children}</main>
-            <Footer />
+            <Footer registrationClosed={registrationClosed} />
           </MotionProvider>
         </ThemeProvider>
       </body>
