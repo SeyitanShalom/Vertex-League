@@ -1,6 +1,6 @@
 # Vertex League
 
-A Next.js football competition website with manager email sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. The app is configured for a live fee of **NGN 25,000 per team** and currently pauses live registration with a **00:00:00** countdown. These source changes still need deployment, and the live Supabase fee row must be synced before registration can safely reopen. Test registration remains separate.
+A Next.js football competition website with manager email sign-in, persistent team registration, bank-transfer instructions, WhatsApp receipt handoff, account-protected team status, and an authenticated organizer dashboard. Live registration is configured for **NGN 25,000 per team** through **23 December 2026 at 11:59 pm WAT**. Deploy the source changes to apply the updated countdown and registration state. Test registration remains separate.
 
 For the cleanup, confirmed real registration values and production deployment record, see the [live registration handoff](docs/LIVE_REGISTRATION.md).
 
@@ -42,7 +42,7 @@ Development uses Webpack after local Turbopack sessions stalled on organizer det
 
 ## Configuration
 
-Public copy, FAQs and rules live in `src/lib/config/competition.ts`. Add only organizer-supplied dates, eligibility criteria and facts. The header and footer use the supplied `public/LOGO 5.png`, framed to exclude the PNG's transparent margins. In dark mode, the shared logo filter swaps navy and white only on the header and footer logos, preserving their contrasting details and transparency. Competition logos retain their separate dark-mode styling, including the Championship logo's original blue center details. Fonts are bundled locally.
+Public copy, FAQs and rules live in `src/lib/config/competition.ts`. Add only organizer-supplied dates, eligibility criteria and facts. The header and footer use the supplied `public/LOGO 5.png`, framed to exclude the PNG's transparent margins. In dark mode, the shared logo filter swaps navy and white only on the header and footer logos, preserving their contrasting details and transparency. The homepage displays the Vertex Premier League and Vertex FA Cup logos with the same monochrome dark-mode filter. Fonts are bundled locally.
 
 Brand colors are navy `#000080` (main) and yellow `#ffd800` (accent), on white page backgrounds. The shared palette and related surface colors are defined in `src/app/globals.css`; the standalone site icon uses the same colors. Typography uses the supplied Mark Pro files with Anton display headings and Manrope as a fallback. The development/build hooks prepare the font stylesheet automatically; supported filenames and formats are described in `public/fonts/README.md`.
 

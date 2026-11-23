@@ -25,7 +25,7 @@ left join pg_catalog.pg_tables as tables
 order by expected.table_name;
 
 -- Target fees: test = 100; live = 25000. This read-only query reports stored values.
--- Live registration is paused in application code; sync the live fee before reopening.
+-- Live registration follows the live row's enabled state and deadline; test mode is separate.
 select mode, registration_fee, registration_enabled
 from public.competition_settings
 order by mode;

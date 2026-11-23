@@ -1,7 +1,7 @@
 import { TEAM_CORRECTION_POLICY } from "@/lib/registration/corrections";
 
 export const LIVE_REGISTRATION_FEE = 25_000;
-export const LIVE_REGISTRATION_PAUSED = true;
+export const LIVE_REGISTRATION_PAUSED = false;
 
 // Organizer-supplied facts only. Dates, eligibility rules and assets can be added here.
 export const competition = {

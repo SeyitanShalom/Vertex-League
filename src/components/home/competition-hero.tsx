@@ -8,12 +8,6 @@ import { RegistrationHeroAction } from "@/components/home/registration-entry-act
 // by ravikatiyar162: https://21st.dev/@ravikatiyar162/components/modern-hero-section
 const competitions = [
   { name: "Vertex Premier League", logo: "/VERTEX LOGO PNG.png", monochrome: true },
-  {
-    name: "Vertex Championship League",
-    logo: "/CHAMPIONSHIP PNG.png",
-    monochrome: false,
-    preserveBlueCenter: true,
-  },
   { name: "Vertex FA Cup", logo: "/VERTEX FA CUP LOGO PNG.png", monochrome: true },
 ];
 
@@ -73,30 +67,16 @@ export function CompetitionHero({
               className="competition-logo"
               delay={0.16 + index * 0.08}
             >
-              <div
-                className={`competition-logo-float${item.preserveBlueCenter ? " competition-logo-championship" : ""}`}
-              >
+              <div className="competition-logo-float">
                 <Image
                   className={item.monochrome ? "competition-logo-monochrome" : undefined}
                   src={item.logo}
                   alt={`${item.name} logo`}
                   width={3000}
                   height={3000}
-                  sizes="(max-width: 560px) 29vw, (max-width: 1100px) 28vw, 320px"
+                  sizes="(max-width: 560px) 42vw, (max-width: 1100px) 35vw, 380px"
                   loading="eager"
                 />
-                {item.preserveBlueCenter && (
-                  <Image
-                    className="competition-logo-center"
-                    src={item.logo}
-                    alt=""
-                    aria-hidden="true"
-                    width={3000}
-                    height={3000}
-                    sizes="(max-width: 560px) 29vw, (max-width: 1100px) 28vw, 320px"
-                    loading="eager"
-                  />
-                )}
               </div>
               <p className="competition-logo-name" aria-hidden="true">
                 {item.name}

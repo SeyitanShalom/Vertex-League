@@ -621,10 +621,10 @@ svg {
 }
 .competition-logo-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
   gap: clamp(14px, 4vw, 56px);
-  max-width: 1040px;
+  max-width: 760px;
   padding: 0;
   margin: 38px auto 0;
   list-style: none;
@@ -640,29 +640,14 @@ svg {
 .competition-logo:nth-child(2) .competition-logo-float {
   animation-delay: -1.2s;
 }
-.competition-logo:nth-child(3) .competition-logo-float {
-  animation-delay: -2.5s;
-}
 .competition-logo img {
   display: block;
   width: 100%;
   height: auto;
   filter: drop-shadow(0 16px 16px rgb(0 0 128 / 0.08));
 }
-:root[data-theme="dark"] .competition-logo-monochrome,
-:root[data-theme="dark"] .competition-logo-championship > img:first-child {
+:root[data-theme="dark"] .competition-logo-monochrome {
   filter: brightness(0) invert(1);
-}
-.competition-logo .competition-logo-center {
-  display: none;
-}
-:root[data-theme="dark"] .competition-logo-center {
-  display: block;
-  position: absolute;
-  inset: 0;
-  /* Preserve the blue circle, lettering and trophy; diagonal accents stay white. */
-  clip-path: circle(28.2% at 51.1% 51.5%);
-  filter: none;
 }
 .competition-logo-name {
   min-height: 30px;

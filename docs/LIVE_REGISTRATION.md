@@ -1,5 +1,9 @@
 # Live registration handoff - 25 October 2026
 
+## Current status - 23 November 2026
+
+The live Supabase row was updated and verified for registration through **23 December 2026 at 11:59 pm WAT**: fee **NGN 25,000**, `registration_enabled=true`, and stored deadline `2026-12-23T22:59:00+00:00`. The test row remains unchanged. Application source now clears the live registration pause and removes the Championship logo from the homepage. This source update has not been deployed to Vercel; the existing production build remains paused until a new production deployment includes it.
+
 The organizer confirmed testing is finished, the recorded NGN 100 payment was simulated, and both test registrations and the saved test draft should be removed. The replacement bank/contact values were supplied in `.env.local`.
 
 ## Cleanup and backups
