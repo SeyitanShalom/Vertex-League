@@ -8,7 +8,7 @@ import { RegistrationHeroAction } from "@/components/home/registration-entry-act
 // by ravikatiyar162: https://21st.dev/@ravikatiyar162/components/modern-hero-section
 const competitions = [
   { name: "Vertex Premier League", logo: "/VERTEX LOGO PNG.png", monochrome: true },
-  { name: "Vertex FA Cup", logo: "/VERTEX FA CUP LOGO PNG.png", monochrome: true },
+  { name: "Vertex Elite Cup", logo: "/VERTEX ELITE CUP LOGO PNG.png", monochrome: true },
 ];
 
 export function CompetitionHero({
